@@ -1,0 +1,240 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use App\Services\AIJournalService;
+use App\Models\Journal;
+use App\Models\JournalVersion;
+
+class AIProcessingController extends Controller
+{
+    protected $aiService;
+    
+    public function __construct(AIJournalService $aiService)
+    {
+        $this->aiService = $aiService;
+    }
+    
+    public function generateDraft(Request $request)
+    {
+        $request->validate([
+            'sections' => 'required|array',
+            'journal_id' => 'nullable|exists:journals,id',
+        ]);
+        
+        // Create or update journal
+        if ($request->journal_id) {
+            $journal = Journal::find($request->journal_id);
+        } else {
+            $journal = Journal::create([
+                'user_id' => Auth::id(),
+                'title' => $request->sections['title'] ?? 'Untitled Journal',
+                'status' => 'ai_processing',
+            ]);
+        }
+        
+        // Save original sections
+        $journal->update([
+            'original_sections' => json_encode($request->sections),
+        ]);
+        
+        return response()->json([
+            'success' => true,
+            'journal_id' => $journal->id,
+            'message' => 'AI generation started',
+        ]);
+    }
+    
+    public function streamGeneration(Request $request, $journalId)
+    {
+        $journal = Journal::findOrFail($journalId);
+        
+        // Check authorization
+        if ($journal->user_id !== Auth::id()) {
+            abort(403);
+        }
+        
+        $sections = json_decode($journal->original_sections, true);
+        
+        // Set headers for Server-Sent Events
+        header('Content-Type: text/event-stream');
+        header('Cache-Control: no-cache');
+        header('Connection: keep-alive');
+        header('X-Accel-Buffering: no'); // Disable nginx buffering
+        
+        // Stream the AI generation
+        $this->aiService->generateJournalFromSections($sections, function($chunk) {
+            echo "data: " . json_encode(['chunk' => $chunk]) . "\n\n";
+            ob_flush();
+            flush();
+            
+            // Check if client disconnected
+            if (connection_aborted()) {
+                exit();
+            }
+        });
+        
+        // Send completion event
+        echo "data: " . json_encode(['complete' => true]) . "\n\n";
+        ob_flush();
+        flush();
+        
+        // Update journal with AI content (would save in separate endpoint)
+        exit();
+    }
+    
+    public function saveAIJournal(Request $request, $journalId)
+    {
+        $journal = Journal::findOrFail($journalId);
+        
+        if ($journal->user_id !== Auth::id()) {
+            abort(403);
+        }
+        
+        $request->validate([
+            'ai_content' => 'required|string',
+        ]);
+        
+        // Create version
+        $version = JournalVersion::create([
+            'journal_id' => $journal->id,
+            'content' => $request->ai_content,
+            'version_number' => $journal->versions()->count() + 1,
+            'ai_provider' => 'deepseek',
+            'is_ai_generated' => true,
+        ]);
+        
+        // Update journal
+        $journal->update([
+            'ai_generated_content' => $request->ai_content,
+            'current_version_id' => $version->id,
+            'status' => 'draft',
+            'ai_provider_used' => 'deepseek',
+            'ai_usage_count' => $journal->ai_usage_count + 1,
+        ]);
+        
+        return response()->json([
+            'success' => true,
+            'journal' => $journal,
+            'version' => $version,
+        ]);
+    }
+    
+    public function postForReview(Request $request, $journalId)
+    {
+        $journal = Journal::findOrFail($journalId);
+        
+        if ($journal->user_id !== Auth::id()) {
+            abort(403);
+        }
+        
+        $request->validate([
+            'visibility' => 'required|in:public,connections,private',
+            'request_feedback_types' => 'array',
+        ]);
+        
+        // Create network post
+        $post = NetworkPost::create([
+            'user_id' => Auth::id(),
+            'journal_id' => $journal->id,
+            'content' => $request->content ?? 'Seeking peer review for my research',
+            'visibility' => $request->visibility,
+            'request_feedback_types' => json_encode($request->request_feedback_types ?? ['general', 'methodology', 'results']),
+            'status' => 'published',
+        ]);
+        
+        // Update journal status
+        $journal->update([
+            'status' => 'under_review',
+            'posted_for_review_at' => now(),
+        ]);
+        
+        // Notify connections
+        $this->notifyConnections($post);
+        
+        return response()->json([
+            'success' => true,
+            'post' => $post,
+            'message' => 'Journal posted for review',
+        ]);
+    }
+    
+    public function improveWithFeedback(Request $request, $journalId)
+    {
+        $journal = Journal::findOrFail($journalId);
+        
+        if ($journal->user_id !== Auth::id()) {
+            abort(403);
+        }
+        
+        $request->validate([
+            'feedback_ids' => 'required|array',
+            'improvement_instructions' => 'nullable|string',
+        ]);
+        
+        // Get feedback
+        $feedbacks = ReviewFeedback::whereIn('id', $request->feedback_ids)
+            ->where('journal_id', $journal->id)
+            ->get();
+        
+        // Create prompt with feedback
+        $prompt = $this->createImprovementPrompt(
+            $journal->ai_generated_content,
+            $feedbacks,
+            $request->improvement_instructions
+        );
+        
+        // Call AI to improve
+        $improvedContent = $this->aiService->improveJournal(
+            $journal->ai_generated_content,
+            $prompt
+        );
+        
+        // Create new version
+        $version = JournalVersion::create([
+            'journal_id' => $journal->id,
+            'content' => $improvedContent,
+            'version_number' => $journal->versions()->count() + 1,
+            'ai_provider' => 'deepseek',
+            'is_ai_generated' => true,
+            'based_on_feedback' => json_encode($feedbacks->pluck('id')),
+        ]);
+        
+        // Update journal
+        $journal->update([
+            'ai_generated_content' => $improvedContent,
+            'current_version_id' => $version->id,
+            'status' => 'revised',
+        ]);
+        
+        return response()->json([
+            'success' => true,
+            'journal' => $journal,
+            'version' => $version,
+        ]);
+    }
+    
+    private function createImprovementPrompt($currentContent, $feedbacks, $instructions)
+    {
+        $prompt = "Improve the following journal based on peer feedback:\n\n";
+        $prompt .= "CURRENT JOURNAL:\n{$currentContent}\n\n";
+        
+        $prompt .= "FEEDBACK RECEIVED:\n";
+        foreach ($feedbacks as $feedback) {
+            $prompt .= "- {$feedback->comment}\n";
+            if ($feedback->suggestions) {
+                $prompt .= "  Suggestions: {$feedback->suggestions}\n";
+            }
+            if ($feedback->rating) {
+                $prompt .= "  Rating: {$feedback->rating}/5\n";
+            }
+        }
+        
+        $prompt .= "\nADDITIONAL INSTRUCTIONS: {$instructions}\n\n";
+        $prompt .= "Please improve the journal addressing the feedback while maintaining academic standards.";
+        
+        return $prompt;
+    }
+}

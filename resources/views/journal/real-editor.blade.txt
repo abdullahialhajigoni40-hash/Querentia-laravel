@@ -1,0 +1,1021 @@
+<!--\resources\views\journal-->
+@extends('layouts.editor')
+
+@section('title', 'New Journal - Querentia AI')
+
+@php
+$sections = [
+    [
+        'title' => 'Research Topic',
+        'subtitle' => 'Main subject of your research',
+        'icon' => 'fas fa-bullseye',
+        'aiTip' => 'Be specific and concise. Include key terms that reflect your research focus.',
+        'placeholder' => 'e.g., Impact of AI-Assisted Writing Tools on Academic Research Quality'
+    ],
+    [
+        'title' => 'Authors',
+        'subtitle' => 'Research team and contributors',
+        'icon' => 'fas fa-users',
+        'aiTip' => 'Include all Authors with their affiliations.',
+        'placeholder' => 'Enter author names, affiliations, and emails (one per line)'
+    ],
+    [
+        'title' => 'Abstract',
+        'subtitle' => 'Brief summary of your research',
+        'icon' => 'fas fa-file-contract',
+        'aiTip' => 'Keep it 150-250 words. Include: Background, Objective, Methods, Key Findings ETC.',
+        'placeholder' => 'Summarize your research concisely...'
+    ],
+    [
+        'title' => 'Introduction',
+        'subtitle' => 'Background and context',
+        'icon' => 'fas fa-book-open',
+        'aiTip' => 'Start broad, then narrow to your specific research question. Include literature review.',
+        'placeholder' => 'Provide background context and state your research problem...'
+    ],
+    [
+        'title' => 'Area of Study',
+        'subtitle' => 'Research domain and field',
+        'icon' => 'fas fa-graduation-cap',
+        'aiTip' => 'Specify primary and secondary research fields. Use standard academic classifications.',
+        'placeholder' => 'e.g., Computer Science, Education Technology, Artificial Intelligence'
+    ],
+    [
+        'title' => 'Additional Notes',
+        'subtitle' => 'Supplementary information',
+        'icon' => 'fas fa-sticky-note',
+        'aiTip' => 'Include funding sources, conflicts of interest, acknowledgments, or other relevant notes.',
+        'placeholder' => 'Add any additional information relevant to your research...'
+    ],
+    [
+        'title' => 'Materials & Methods',
+        'subtitle' => 'Research methodology',
+        'icon' => 'fas fa-flask',
+        'aiTip' => 'Be detailed enough for reproducibility. Include study design, participants, procedures, analysis.',
+        'placeholder' => 'Describe your research methodology in detail...'
+    ],
+    [
+        'title' => 'Results & Discussion',
+        'subtitle' => 'Findings and analysis',
+        'icon' => 'fas fa-chart-bar',
+        'aiTip' => 'Present results objectively, then interpret them. Compare with existing literature.',
+        'placeholder' => 'Present your findings and discuss their implications...'
+    ],
+    [
+        'title' => 'Conclusion',
+        'subtitle' => 'Summary and implications',
+        'icon' => 'fas fa-flag-checkered',
+        'aiTip' => 'Summarize key findings, state limitations, suggest future research directions.',
+        'placeholder' => 'Conclude your research and discuss implications...'
+    ],
+    [
+        'title' => 'References',
+        'subtitle' => 'Citations and bibliography',
+        'icon' => 'fas fa-book',
+        'aiTip' => 'Use consistent citation style (APA, MLA, Chicago). Include all cited works.',
+        'placeholder' => 'List your references in the required format...'
+    ],
+    [
+        'title' => 'Annexes',
+        'subtitle' => 'Additional materials',
+        'icon' => 'fas fa-paperclip',
+        'aiTip' => 'Include supplementary tables, questionnaires, detailed protocols, or raw data summaries.',
+        'placeholder' => 'Add supplementary materials...'
+    ],
+    [
+        'title' => 'Maps & Figures',
+        'subtitle' => 'Visual elements',
+        'icon' => 'fas fa-images',
+        'placeholder' => 'Upload and describe your visual materials...'
+    ],
+];
+@endphp
+
+@section('editor-content')
+<div class="p-8">
+    <!-- Section 1: Research Topic -->
+    <template x-if="activeSection === 0">
+        <div>
+            <div class="mb-6">
+                <label class="block text-sm font-medium text-gray-700 mb-2">
+                    Research Topic Title *
+                </label>
+                <input type="text" 
+                       x-model="sections[0].content"
+                       @input="sectionsCompleted[0] = $event.target.value.length > 10"
+                       class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-lg font-medium"
+                       placeholder="Enter your research topic...">
+                <p class="text-xs text-gray-500 mt-2">Be specific and descriptive</p>
+            </div>
+            
+            
+        </div>
+    </template>
+
+    <!-- Section 2: Authors -->
+    <template x-if="activeSection === 1">
+        <div>
+            <div class="mb-6">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="font-medium text-gray-900">Authors & Affiliations</h3>
+                    <button @click="sections[1].authors.push({name: '', affiliation: '', email: '', corresponding: false})"
+                            class="text-sm text-purple-600 hover:text-purple-800">
+                        <i class="fas fa-user-plus mr-1"></i>Add Author
+                    </button>
+                </div>
+                
+                <div class="space-y-4">
+                    <template x-for="(author, index) in sections[1].authors" :key="index">
+                        <div class="border rounded-lg p-4">
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-3">
+                                <div>
+                                    <label class="block text-xs font-medium text-gray-700 mb-1">Full Name *</label>
+                                    <input type="text" 
+                                           x-model="author.name"
+                                           class="w-full px-3 py-2 border border-gray-300 rounded focus:ring-1 focus:ring-purple-500">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-medium text-gray-700 mb-1">Affiliation *</label>
+                                    <input type="text" 
+                                           x-model="author.affiliation"
+                                           class="w-full px-3 py-2 border border-gray-300 rounded focus:ring-1 focus:ring-purple-500">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-medium text-gray-700 mb-1">Email</label>
+                                    <input type="email" 
+                                           x-model="author.email"
+                                           class="w-full px-3 py-2 border border-gray-300 rounded focus:ring-1 focus:ring-purple-500">
+                                </div>
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <label class="flex items-center">
+                                    <input type="checkbox" 
+                                           x-model="author.corresponding"
+                                           class="rounded border-gray-300 text-purple-600 focus:ring-purple-500">
+                                    <span class="ml-2 text-sm text-gray-700">Corresponding Author</span>
+                                </label>
+                                <button @click="sections[1].authors.splice(index, 1)" 
+                                        class="text-red-600 hover:text-red-800 text-sm">
+                                    <i class="fas fa-trash"></i> Remove
+                                </button>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+            </div>
+        </div>
+    </template>
+
+    <!-- Section 3: Abstract -->
+    <template x-if="activeSection === 2">
+        <div>
+            <div class="mb-6">
+                <label class="block text-sm font-medium text-gray-700 mb-2">
+                    Abstract *
+                </label>
+                <textarea x-model="sections[2].content"
+                          @input="sectionsCompleted[2] = $event.target.value.length > 150"
+                          rows="8"
+                          class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-y"
+                          placeholder="Write a concise summary of your research (150-250 words)..."></textarea>
+                <div class="flex justify-between items-center mt-2">
+                    <p class="text-xs text-gray-500">
+                        Recommended: 150-250 words
+                    </p>
+                    <p class="text-xs" 
+                       :class="sections[2].content.length < 150 ? 'text-red-600' : 'text-green-600'">
+                        <span x-text="sections[2].content.length"></span> words
+                    </p>
+                </div>
+            </div>
+        </div>
+    </template>
+
+    <!-- Section 4: Introduction -->
+    <template x-if="activeSection === 3">
+        <div>
+            <div class="mb-6">
+                <label class="block text-sm font-medium text-gray-700 mb-2">
+                    Introduction *
+                </label>
+                <textarea x-model="sections[3].content"
+                          @input="sectionsCompleted[3] = $event.target.value.length > 300"
+                          rows="12"
+                          class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-y"
+                          placeholder="Provide background, literature review, and research problem statement..."></textarea>
+                <div class="flex justify-between items-center mt-2">
+                    <p class="text-xs text-gray-500">
+                        Include: Background, Literature Gap, Research Question
+                    </p>
+                    <p class="text-xs" 
+                       :class="sections[3].content.length < 300 ? 'text-yellow-600' : 'text-green-600'">
+                        <span x-text="sections[3].content.length"></span> words
+                    </p>
+                </div>
+            </div>
+        </div>
+    </template>
+
+    <!-- Section 5: Area of Study -->
+    <template x-if="activeSection === 4">
+        <div>
+            <div class="mb-6">
+                <label class="block text-sm font-medium text-gray-700 mb-2">
+                    Primary Research Area *
+                </label>
+                <textarea x-model="sections[4].content"
+                          @input="sectionsCompleted[4] = $event.target.value.length > 300"
+                          rows="12"
+                          class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-y"
+                          placeholder="Area Of Study"></textarea>
+                <div class="flex justify-between items-center mt-2">
+                    <!--<p class="text-xs text-gray-500">
+                        Include: Background, Literature Gap, Research Question
+                    </p>-->
+                    <p class="text-xs" 
+                       :class="sections[3].content.length < 300 ? 'text-yellow-600' : 'text-green-600'">
+                        <span x-text="sections[3].content.length"></span> words
+                    </p>
+                </div>
+            </div>
+        </div>
+    </template>
+
+    <!-- Section 6: Additional Notes -->
+    <template x-if="activeSection === 5">
+        <div>
+            <div class="mb-6">
+                <label class="block text-sm font-medium text-gray-700 mb-2">
+                    Additional Information
+                </label>
+                <textarea x-model="sections[5].content"
+                          rows="6"
+                          class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-y"
+                          placeholder="Add any supplementary information..."></textarea>
+            </div>
+        </div>
+    </template>
+
+    <!-- Section 7: Materials & Methods -->
+    <template x-if="activeSection === 6">
+        <div>
+            <div class="mb-6">
+                <label class="block text-sm font-medium text-gray-700 mb-2">
+                    Study Design *
+                </label>
+                <textarea x-model="sections[6].studyDesign"
+                          rows="4"
+                          class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-y"
+                          placeholder="Describe your study design (experimental, observational, qualitative, etc.)..."></textarea>
+            </div>
+        </div>
+    </template>
+
+    <!-- Section 8: Results & Discussion -->
+    <template x-if="activeSection === 7">
+        <div>
+            <div class="mb-6">
+                <label class="block text-sm font-medium text-gray-700 mb-2">
+                    Key Findings *
+                </label>
+                <textarea x-model="sections[7].findings"
+                          rows="6"
+                          class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-y"
+                          placeholder="Present your main results objectively..."></textarea>
+            </div>
+            
+            <div class="mb-6">
+                <label class="block text-sm font-medium text-gray-700 mb-2">
+                    Discussion
+                </label>
+                <textarea x-model="sections[7].discussion"
+                          rows="8"
+                          class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-y"
+                          placeholder="Interpret your findings, compare with literature, discuss implications..."></textarea>
+            </div>
+            
+        </div>
+    </template>
+
+    <!-- Section 9: Conclusion -->
+    <template x-if="activeSection === 8">
+        <div>
+            <div class="mb-6">
+                <label class="block text-sm font-medium text-gray-700 mb-2">
+                    Conclusion *
+                </label>
+                <textarea x-model="sections[8].content"
+                          rows="6"
+                          class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-y"
+                          placeholder="Summarize key findings and their significance..."></textarea>
+            </div>
+        </div>
+    </template>
+
+    <!-- Section 10: References -->
+    <template x-if="activeSection === 9">
+        <div>
+            <div class="mb-6">
+                <h3 class="font-medium text-gray-900">References *</h3>
+                <div class="flex justify-between items-center mb-4">
+                    <textarea x-model="sections[4].content"
+                          @input="sectionsCompleted[4] = $event.target.value.length > 300"
+                          rows="12"
+                          class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-y"
+                          placeholder="References"></textarea>
+                </div>
+                <div class="flex justify-between items-center mt-2">
+                     <p class="text-xs" 
+                       :class="sections[3].content.length < 300 ? 'text-yellow-600' : 'text-green-600'">
+                        <span x-text="sections[3].content.length"></span>
+                </div>
+                </div>
+                
+                <div class="space-y-3">
+                    <template x-for="(ref, index) in sections[9].references" :key="index">
+                        <div class="border rounded-lg p-4">
+                            <div class="flex justify-between items-start mb-3">
+                                <span class="text-sm font-medium text-gray-700">Reference #<span x-text="index + 1"></span></span>
+                                <button @click="sections[9].references.splice(index, 1)" 
+                                        class="text-red-600 hover:text-red-800">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                            <textarea x-model="ref.citation"
+                                      rows="2"
+                                      class="w-full px-3 py-2 border border-gray-300 rounded focus:ring-1 focus:ring-purple-500"
+                                      placeholder="Paste citation or enter manually..."></textarea>
+                            <div class="mt-2 flex justify-end">
+                                <button @click="formatCitation(ref)"
+                                        class="text-xs text-purple-600 hover:text-purple-800">
+                                    <i class="fas fa-magic mr-1"></i>AI Format
+                                </button>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+            </div>
+            
+            <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <div class="flex items-start space-x-3">
+                    <i class="fas fa-lightbulb text-blue-500 mt-1"></i>
+                    <div>
+                        <p class="text-sm font-medium text-blue-800">AI Reference Suggestions</p>
+                        <p class="text-sm text-blue-700 mt-1">
+                            Click "AI Format" to automatically format citations according to selected style.
+                        </p>
+                        <button @click="suggestReferences()"
+                                class="mt-2 text-sm text-blue-600 hover:text-blue-800">
+                            <i class="fas fa-robot mr-1"></i>Suggest Relevant References
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </template>
+
+    <!-- Section 11: Annexes -->
+    <template x-if="activeSection === 10">
+        <div>
+            <div class="mb-6">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="font-medium text-gray-900">Supplementary Materials</h3>
+                    <button @click="document.getElementById('annexUpload').click()"
+                            class="text-sm text-purple-600 hover:text-purple-800">
+                        <i class="fas fa-upload mr-1"></i>Upload File
+                    </button>
+                    <input type="file" id="annexUpload" class="hidden" multiple>
+                </div>
+                
+                <div class="space-y-3">
+                    <template x-for="(annex, index) in sections[10].annexes" :key="index">
+                        <div class="border rounded-lg p-4">
+                            <div class="flex items-start justify-between">
+                                <div class="flex items-center space-x-3">
+                                    <div class="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center">
+                                        <i class="fas fa-file text-gray-500"></i>
+                                    </div>
+                                    <div>
+                                        <p class="font-medium" x-text="annex.name"></p>
+                                        <p class="text-xs text-gray-500" x-text="annex.size"></p>
+                                        <p class="text-xs text-gray-500" x-text="annex.type"></p>
+                                    </div>
+                                </div>
+                                <div class="flex space-x-2">
+                                    <button class="text-blue-600 hover:text-blue-800">
+                                        <i class="fas fa-eye"></i>
+                                    </button>
+                                    <button @click="sections[10].annexes.splice(index, 1)" 
+                                            class="text-red-600 hover:text-red-800">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="mt-3">
+                                <label class="block text-xs font-medium text-gray-700 mb-1">Description</label>
+                                <input type="text" 
+                                       x-model="annex.description"
+                                       class="w-full px-3 py-2 border border-gray-300 rounded text-sm">
+                            </div>
+                        </div>
+                    </template>
+                </div>
+            </div>
+            
+            <div class="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
+                <i class="fas fa-paperclip text-3xl text-gray-400 mb-3"></i>
+                <p class="text-gray-600 mb-2">Drag and drop files here or click to upload</p>
+                <p class="text-sm text-gray-500">Supports PDF, DOCX, XLSX, images (max 10MB each)</p>
+                <button @click="document.getElementById('annexUpload').click()"
+                        class="mt-4 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200">
+                    Browse Files
+                </button>
+            </div>
+        </div>
+    </template>
+
+    <!-- Section 12: Maps & Figures -->
+    <template x-if="activeSection === 11">
+        <div>
+            <div class="mb-6">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="font-medium text-gray-900">Visual Elements</h3>
+                    <button @click="document.getElementById('figureUpload').click()"
+                            class="text-sm text-purple-600 hover:text-purple-800">
+                        <i class="fas fa-upload mr-1"></i>Upload Image
+                    </button>
+                    <input type="file" id="figureUpload" class="hidden" accept="image/*" multiple>
+                </div>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <template x-for="(figure, index) in sections[11].figures" :key="index">
+                        <div class="border rounded-lg overflow-hidden">
+                            <div class="p-4">
+                                <div class="flex justify-between items-start mb-3">
+                                    <div>
+                                        <p class="font-medium" x-text="'Figure ' + (index + 1)"></p>
+                                        <p class="text-xs text-gray-500" x-text="figure.caption"></p>
+                                    </div>
+                                    <div class="flex space-x-2">
+                                        <button class="text-blue-600 hover:text-blue-800">
+                                            <i class="fas fa-edit"></i>
+                                        </button>
+                                        <button @click="sections[11].figures.splice(index, 1)" 
+                                                class="text-red-600 hover:text-red-800">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="bg-gray-100 h-48 rounded flex items-center justify-center">
+                                    <i class="fas fa-image text-gray-400 text-3xl"></i>
+                                </div>
+                                <div class="mt-3">
+                                    <label class="block text-xs font-medium text-gray-700 mb-1">Caption</label>
+                                    <input type="text" 
+                                           x-model="figure.caption"
+                                           class="w-full px-3 py-2 border border-gray-300 rounded text-sm"
+                                           placeholder="Enter figure caption...">
+                                </div>
+                                <div class="mt-2">
+                                    <label class="block text-xs font-medium text-gray-700 mb-1">Source</label>
+                                    <input type="text" 
+                                           x-model="figure.source"
+                                           class="w-full px-3 py-2 border border-gray-300 rounded text-sm"
+                                           placeholder="Source or citation...">
+                                </div>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+            </div>
+            
+            <div class="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
+                <i class="fas fa-images text-3xl text-gray-400 mb-3"></i>
+                <p class="text-gray-600 mb-2">Drag and drop images here or click to upload</p>
+                <p class="text-sm text-gray-500">Supports JPG, PNG, SVG, GIF (max 5MB each)</p>
+                <button @click="document.getElementById('figureUpload').click()"
+                        class="mt-4 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200">
+                    Browse Images
+                </button>
+            </div>
+        </div>
+    </template>
+</div>
+
+<script>
+    function journalEditor() {
+        return {
+            ...window.journalEditor(), // Inherit from layout
+            
+            sections: @json($sections),
+            
+            // Initialize section data
+            initSections() {
+                this.sections.forEach((section, index) => {
+                    // Add default data structure for each section
+                    switch(index) {
+                        case 0: // Research Topic
+                            section.content = '';
+                            section.keywords = [];
+                            section.newKeyword = '';
+                            break;
+                        case 1: // Authors
+                            section.authors = [
+                                {
+                                    name: '{{ auth()->user()->full_name }}',
+                                    affiliation: '{{ auth()->user()->institution }}',
+                                    email: '{{ auth()->user()->email }}',
+                                    corresponding: true
+                                }
+                            ];
+                            break;
+                        case 2: // Abstract
+                        case 3: // Introduction
+                        case 5: // Additional Notes
+                        case 8: // Conclusion
+                            section.content = '';
+                            break;
+                        case 4: // Area of Study
+                            section.primaryArea = '';
+                            section.subdisciplines = [];
+                            break;
+                        case 6: // Materials & Methods
+                            section.studyDesign = '';
+                            section.participants = '';
+                            section.procedures = '';
+                            section.analysis = '';
+                            break;
+                        case 7: // Results & Discussion
+                            section.findings = '';
+                            section.discussion = '';
+                            section.limitations = '';
+                            break;
+                        case 9: // References
+                            section.references = [];
+                            section.citationStyle = 'apa';
+                            break;
+                        case 10: // Annexes
+                            section.annexes = [];
+                            break;
+                        case 11: // Maps & Figures
+                            section.figures = [];
+                            break;
+                    }
+                });
+                // Auto-save section to backend
+                saveSectionToBackend(journalId, sectionKey, content) {
+                    fetch(`/journal/${journalId}/save-section`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                        },
+                        body: JSON.stringify({
+                            section: sectionKey,
+                            content: content
+                        })
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            // Optionally show a toast or status
+                        }
+                    });
+                },
+        
+                // AI Assist: process full journal
+                processJournalWithAI(journalId) {
+                    fetch(`/journal/${journalId}/process-ai`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                        }
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            alert('Journal processed with AI!');
+                            window.location.href = data.preview_url;
+                        } else {
+                            alert('AI processing failed: ' + data.message);
+                        }
+                    });
+                },
+            },
+            
+            formatCitation(ref) {
+                if (!this.aiAssistEnabled) {
+                    alert('Enable AI Assist to format citations');
+                    return;
+                }
+                
+                // Simulate AI formatting
+                if (ref.citation.trim()) {
+                    alert('AI is formatting this citation in ' + this.sections[9].citationStyle.toUpperCase() + ' style');
+                    // In real app, this would call AI API
+                }
+            },
+            
+            init() {
+                this.initSections();
+                this.$nextTick(() => {
+                    this.updateWordCount();
+                });
+            }
+        }
+    }
+
+            // Auto-save on section change
+            autoSaveSection(sectionIndex) {
+                if (!this.journalId) return;
+                const sectionKey = this.sections[sectionIndex].key || `section_${sectionIndex}`;
+                const sectionContent = this.sections[sectionIndex].content;
+                this.saveSectionToBackend(this.journalId, sectionKey, sectionContent);
+            }
+    // Add to the JavaScript section
+uploadAnnex(file) {
+    if (!file) return;
+    
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('journal_id', this.journalId || 'new');
+    
+    this.saveStatus = 'Uploading annex...';
+    
+    fetch('/api/upload/annex', {
+        method: 'POST',
+        headers: {
+            'X-CSRF-TOKEN': '{{ csrf_token() }}',
+        },
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            this.sections[10].annexes.push({
+                name: data.file.original_name,
+                path: data.file.path,
+                size: this.formatFileSize(data.file.size),
+                type: data.file.type,
+                description: ''
+            });
+            this.saveStatus = 'Saved';
+            alert('Annex uploaded successfully!');
+        } else {
+            alert('Upload failed: ' + data.message);
+        }
+    });
+},
+
+uploadFigure(file) {
+    if (!file) return;
+    
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('journal_id', this.journalId || 'new');
+    
+    this.saveStatus = 'Uploading figure...';
+    
+    fetch('/api/upload/figure', {
+        method: 'POST',
+        headers: {
+            'X-CSRF-TOKEN': '{{ csrf_token() }}',
+        },
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            this.sections[11].figures.push({
+                name: data.file.original_name,
+                path: data.file.path,
+                caption: '',
+                source: '',
+                size: this.formatFileSize(data.file.size),
+                type: data.file.type
+            });
+            this.saveStatus = 'Saved';
+            alert('Figure uploaded successfully!');
+        } else {
+            alert('Upload failed: ' + data.message);
+        }
+    });
+},
+
+formatFileSize(bytes) {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+},
+
+// Handle file input changes
+handleFileUpload(event, type) {
+    const files = event.target.files;
+    for (let file of files) {
+        if (type === 'annex') {
+            this.uploadAnnex(file);
+        } else if (type === 'figure') {
+            this.uploadFigure(file);
+        }
+    }
+    event.target.value = ''; // Reset input
+},
+
+// Initialize file upload handlers
+initFileUploads() {
+    // Annex upload
+    const annexInput = document.getElementById('annexUpload');
+    if (annexInput) {
+        annexInput.addEventListener('change', (e) => {
+            this.handleFileUpload(e, 'annex');
+        });
+    }
+    
+    // Figure upload
+    const figureInput = document.getElementById('figureUpload');
+    if (figureInput) {
+        figureInput.addEventListener('change', (e) => {
+            this.handleFileUpload(e, 'figure');
+        });
+    }
+    
+    // Drag and drop for annexes
+    const annexDropZone = document.querySelector('[x-if="activeSection === 10"] .border-dashed');
+    if (annexDropZone) {
+        this.setupDropZone(annexDropZone, 'annex');
+    }
+    
+    // Drag and drop for figures
+    const figureDropZone = document.querySelector('[x-if="activeSection === 11"] .border-dashed');
+    if (figureDropZone) {
+        this.setupDropZone(figureDropZone, 'figure');
+    }
+},
+
+setupDropZone(element, type) {
+    element.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        element.classList.add('border-purple-500', 'bg-purple-50');
+    });
+    
+    element.addEventListener('dragleave', (e) => {
+        e.preventDefault();
+        element.classList.remove('border-purple-500', 'bg-purple-50');
+    });
+    
+    element.addEventListener('drop', (e) => {
+        e.preventDefault();
+        element.classList.remove('border-purple-500', 'bg-purple-50');
+        
+        const files = e.dataTransfer.files;
+        for (let file of files) {
+            if (type === 'annex') {
+                this.uploadAnnex(file);
+            } else if (type === 'figure') {
+                this.uploadFigure(file);
+            }
+        }
+    });
+},
+
+// Update init method
+init() {
+    this.initSections();
+    this.initFileUploads();
+    this.$nextTick(() => {
+        this.updateWordCount();
+    });
+}
+
+// Add to journal editor JavaScript
+aiEnhanceSection() {
+    if (!this.aiAssistEnabled) {
+        alert('Please enable AI Assist first');
+        return;
+    }
+    
+    const sectionContent = this.sections[this.activeSection].content;
+    const sectionType = this.getSectionType(this.activeSection);
+    
+    this.saveStatus = 'AI Enhancing...';
+    
+    fetch('/api/ai/enhance', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': '{{ csrf_token() }}'
+        },
+        body: JSON.stringify({
+            content: sectionContent,
+            section_type: sectionType,
+            journal_id: this.journalId || null,
+            context: {
+                title: this.sections[0].content || 'Untitled',
+                area_of_study: this.sections[4]?.primaryArea || '',
+            }
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            this.sections[this.activeSection].content = data.enhanced_content;
+            this.sectionsCompleted[this.activeSection] = true;
+            this.saveStatus = 'AI Enhanced';
+            
+            // Show AI suggestions
+            this.showAISuggestions(data.suggestions, data.provider);
+        } else {
+            alert('AI Enhancement failed: ' + data.message);
+            this.saveStatus = 'Error';
+        }
+    })
+    .catch(error => {
+        alert('Network error: ' + error.message);
+        this.saveStatus = 'Error';
+    });
+},
+
+getSectionType(sectionIndex) {
+    const sectionMap = {
+        0: 'enhance', // Research Topic
+        1: 'enhance', // Authors
+        2: 'abstract', // Abstract
+        3: 'introduction', // Introduction
+        4: 'enhance', // Area of Study
+        5: 'enhance', // Additional Notes
+        6: 'methodology', // Materials & Methods
+        7: 'results', // Results & Discussion
+        8: 'conclusion', // Conclusion
+        9: 'references', // References
+        10: 'enhance', // Annexes
+        11: 'enhance', // Maps & Figures
+    };
+    
+    return sectionMap[sectionIndex] || 'enhance';
+},
+
+showAISuggestions(suggestions, provider) {
+    // Create and show suggestions modal
+    const modal = document.createElement('div');
+    modal.className = 'fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4';
+    modal.innerHTML = `
+        <div class="bg-white rounded-xl max-w-2xl w-full max-h-[80vh] overflow-y-auto">
+            <div class="p-6 border-b">
+                <div class="flex justify-between items-center">
+                    <h2 class="text-xl font-bold">AI Suggestions (${provider})</h2>
+                    <button onclick="this.closest('.fixed').remove()" class="text-gray-500 hover:text-gray-700">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="p-6">
+                <div class="space-y-4">
+                    ${suggestions.map(suggestion => `
+                        <div class="border-l-4 border-purple-500 pl-4 py-2">
+                            <p class="text-gray-700">${suggestion}</p>
+                        </div>
+                    `).join('')}
+                </div>
+                <div class="mt-6 flex justify-end">
+                    <button onclick="this.closest('.fixed').remove()" 
+                            class="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700">
+                        Close
+                    </button>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
+    
+    // Close on outside click
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+            modal.remove();
+        }
+    });
+},
+
+checkGrammar() {
+    if (!this.aiAssistEnabled) {
+        alert('Please enable AI Assist first');
+        return;
+    }
+    
+    const sectionContent = this.sections[this.activeSection].content;
+    
+    this.saveStatus = 'Checking Grammar...';
+    
+    fetch('/api/ai/check-grammar', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': '{{ csrf_token() }}'
+        },
+        body: JSON.stringify({
+            content: sectionContent,
+            journal_id: this.journalId || null,
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            this.sections[this.activeSection].content = data.corrected_content;
+            this.saveStatus = 'Grammar Checked';
+            alert('Grammar check completed using ' + data.provider);
+        } else {
+            alert('Grammar check failed: ' + data.message);
+            this.saveStatus = 'Error';
+        }
+    });
+},
+
+generateAbstract() {
+    if (!this.aiAssistEnabled) {
+        alert('Please enable AI Assist first');
+        return;
+    }
+    
+    // Get content from introduction and results
+    const introContent = this.sections[3]?.content || '';
+    const resultsContent = this.sections[7]?.findings || '';
+    const combinedContent = introContent + '\n\n' + resultsContent;
+    
+    if (combinedContent.length < 100) {
+        alert('Please write some content in Introduction and Results sections first');
+        return;
+    }
+    
+    this.saveStatus = 'Generating Abstract...';
+    
+    fetch('/api/ai/generate-abstract', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': '{{ csrf_token() }}'
+        },
+        body: JSON.stringify({
+            content: combinedContent,
+            journal_id: this.journalId || null,
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            this.sections[2].content = data.abstract;
+            this.sectionsCompleted[2] = true;
+            this.saveStatus = 'Abstract Generated';
+            alert('Abstract generated using ' + data.provider);
+        } else {
+            alert('Abstract generation failed: ' + data.message);
+            this.saveStatus = 'Error';
+        }
+    });
+},
+
+suggestReferences() {
+    if (!this.aiAssistEnabled) {
+        alert('Please enable AI Assist first');
+        return;
+    }
+    
+    const topic = this.sections[0]?.content || 'Academic Research';
+    
+    this.saveStatus = 'Suggesting References...';
+    
+    fetch('/api/ai/suggest-references', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': '{{ csrf_token() }}'
+        },
+        body: JSON.stringify({
+            topic: topic,
+            count: 10,
+            style: this.sections[9]?.citationStyle || 'apa',
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Parse references and add to references section
+            const references = data.references.split('\n').filter(ref => ref.trim());
+            references.forEach(ref => {
+                this.sections[9].references.push({
+                    citation: ref.trim()
+                });
+            });
+            
+            this.saveStatus = 'References Suggested';
+            alert('References suggested using ' + data.provider);
+        } else {
+            alert('Reference suggestion failed: ' + data.message);
+            this.saveStatus = 'Error';
+        }
+    });
+}
+</script>
+@endsection

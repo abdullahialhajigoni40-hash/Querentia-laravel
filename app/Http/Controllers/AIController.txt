@@ -1,0 +1,319 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use App\Services\AIService;
+use App\Models\Journal;
+
+class AIController extends Controller
+{
+    protected $aiService;
+
+    public function __construct(AIService $aiService)
+    {
+        $this->aiService = $aiService;
+        $this->middleware('auth');
+    }
+
+    /**
+     * Enhance journal section with AI
+     */
+    public function enhanceSection(Request $request)
+    {
+        $request->validate([
+            'content' => 'required|string',
+            'section_type' => 'required|in:abstract,introduction,methodology,results,conclusion,references,enhance,grammar,summarize',
+            'journal_id' => 'nullable|exists:journals,id',
+            'provider' => 'nullable|in:deepseek,openai,gemini',
+            'context' => 'nullable|array',
+        ]);
+
+        try {
+            $user = Auth::user();
+            $journal = $request->journal_id ? Journal::find($request->journal_id) : null;
+            
+            // Verify journal ownership
+            if ($journal && $journal->user_id !== $user->id) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Unauthorized access to journal'
+                ], 403);
+            }
+
+            $context = array_merge($request->context ?? [], [
+                'title' => $journal->title ?? 'Untitled',
+                'area_of_study' => $journal->area_of_study ?? 'Not specified',
+                'citation_style' => 'APA', // Default, can be configurable
+            ]);
+
+            $result = $this->aiService->processJournalSection(
+                $request->content,
+                $request->section_type,
+                $context,
+                $request->provider
+            );
+
+            // Update journal AI usage count
+            if ($journal) {
+                $journal->increment('ai_usage_count');
+                $journal->update([
+                    'ai_provider_used' => $result['provider'],
+                ]);
+            }
+
+            return response()->json([
+                'success' => true,
+                'enhanced_content' => $result['content'],
+                'provider' => $result['provider'],
+                'tokens_used' => $result['tokens_used'],
+                'estimated_cost' => $result['estimated_cost'],
+                'suggestions' => $result['suggestions'],
+                'message' => 'Section enhanced successfully using ' . $result['provider'],
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Get AI usage statistics
+     */
+    public function getUsageStats()
+    {
+        try {
+            $user = Auth::user();
+            $stats = $this->aiService->getUserUsageStats($user->id);
+
+            return response()->json([
+                'success' => true,
+                'stats' => $stats,
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Get AI providers status
+     */
+    public function getProvidersStatus()
+    {
+        try {
+            $status = $this->aiService->getProvidersStatus();
+
+            return response()->json([
+                'success' => true,
+                'providers' => $status,
+                'default_provider' => config('ai.default_provider'),
+                'fallback_enabled' => config('ai.fallback_enabled'),
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Test AI provider connectivity
+     */
+    public function testProvider(Request $request)
+    {
+        $request->validate([
+            'provider' => 'required|in:deepseek,openai,gemini',
+        ]);
+
+        try {
+            $result = $this->aiService->testProvider($request->provider);
+
+            return response()->json($result);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Generate abstract from content
+     */
+    public function generateAbstract(Request $request)
+    {
+        $request->validate([
+            'content' => 'required|string',
+            'journal_id' => 'nullable|exists:journals,id',
+        ]);
+
+        try {
+            $user = Auth::user();
+            $journal = $request->journal_id ? Journal::find($request->journal_id) : null;
+
+            $context = [
+                'title' => $journal->title ?? 'Research Paper',
+                'area_of_study' => $journal->area_of_study ?? 'Academic Research',
+            ];
+
+            $result = $this->aiService->processJournalSection(
+                $request->content,
+                'summarize',
+                $context
+            );
+
+            return response()->json([
+                'success' => true,
+                'abstract' => $result['content'],
+                'provider' => $result['provider'],
+                'tokens_used' => $result['tokens_used'],
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Check grammar and spelling
+     */
+    public function checkGrammar(Request $request)
+    {
+        $request->validate([
+            'content' => 'required|string',
+            'journal_id' => 'nullable|exists:journals,id',
+        ]);
+
+        try {
+            $user = Auth::user();
+            $journal = $request->journal_id ? Journal::find($request->journal_id) : null;
+
+            $result = $this->aiService->processJournalSection(
+                $request->content,
+                'grammar',
+                []
+            );
+
+            return response()->json([
+                'success' => true,
+                'corrected_content' => $result['content'],
+                'provider' => $result['provider'],
+                'tokens_used' => $result['tokens_used'],
+                'suggestions' => $result['suggestions'],
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Suggest references
+     */
+    public function suggestReferences(Request $request)
+    {
+        $request->validate([
+            'topic' => 'required|string',
+            'count' => 'nullable|integer|min:1|max:20',
+            'style' => 'nullable|in:apa,mla,chicago,harvard',
+        ]);
+
+        try {
+            $user = Auth::user();
+            
+            $prompt = "Suggest " . ($request->count ?? 10) . " academic references for topic: " . $request->topic;
+            
+            $result = $this->aiService->processJournalSection(
+                $prompt,
+                'references',
+                [
+                    'citation_style' => $request->style ?? 'APA',
+                ]
+            );
+
+            return response()->json([
+                'success' => true,
+                'references' => $result['content'],
+                'provider' => $result['provider'],
+                'tokens_used' => $result['tokens_used'],
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Admin: Get system-wide AI stats
+     */
+    public function getSystemStats(Request $request)
+    {
+        // Check if user is admin
+        if (!Auth::user()->is_admin) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthorized'
+            ], 403);
+        }
+
+        try {
+            // Get total usage
+            $totalUsage = \App\Models\AIUsageLog::selectRaw('
+                SUM(tokens_used) as total_tokens,
+                SUM(estimated_cost) as total_cost,
+                COUNT(*) as total_requests,
+                COUNT(DISTINCT user_id) as total_users
+            ')->first();
+
+            // Get usage by provider
+            $providerStats = \App\Models\AIUsageLog::select('provider')
+                ->selectRaw('SUM(tokens_used) as tokens, COUNT(*) as requests, SUM(estimated_cost) as cost')
+                ->groupBy('provider')
+                ->get();
+
+            // Get daily usage for last 30 days
+            $dailyUsage = \App\Models\AIUsageLog::where('created_at', '>=', now()->subDays(30))
+                ->selectRaw('DATE(created_at) as date, SUM(tokens_used) as tokens, COUNT(*) as requests')
+                ->groupBy('date')
+                ->orderBy('date')
+                ->get();
+
+            return response()->json([
+                'success' => true,
+                'stats' => [
+                    'total' => $totalUsage,
+                    'providers' => $providerStats,
+                    'daily' => $dailyUsage,
+                    'active_providers' => $this->aiService->getProvidersStatus(),
+                ],
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 500);
+        }
+    }
+}

@@ -1,0 +1,222 @@
+<?php
+
+namespace App\Http\Controllers\AI;
+
+use App\Http\Controllers\Controller;
+use App\Services\AIJournalService;
+use App\Models\Journal;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
+
+class StreamingController extends Controller
+{
+    protected $aiService;
+    
+    public function __construct(AIJournalService $aiService)
+    {
+        $this->aiService = $aiService;
+    }
+    
+    /**
+     * Start streaming journal generation
+     */
+    public function streamJournal(Request $request, $journalId = null)
+    {
+        $request->validate([
+            'sections' => 'required|array',
+            'provider' => 'nullable|in:deepseek,openai,gemini',
+        ]);
+        
+        // Create or get journal
+        if ($journalId) {
+            $journal = Journal::where('id', $journalId)
+                ->where('user_id', Auth::id())
+                ->firstOrFail();
+        } else {
+            $journal = Journal::create([
+                'user_id' => Auth::id(),
+                'title' => $request->sections['title'] ?? 'Untitled Journal',
+                'status' => 'ai_processing',
+                'original_sections' => json_encode($request->sections),
+            ]);
+        }
+        
+        // Set SSE headers
+        header('Content-Type: text/event-stream');
+        header('Cache-Control: no-cache');
+        header('X-Accel-Buffering: no'); // Disable nginx buffering
+        
+        // Start streaming
+        $this->streamToClient($journal, $request->sections, $request->input('provider'));
+        
+        exit;
+    }
+    
+    /**
+     * Stream content to client
+     */
+    private function streamToClient(Journal $journal, array $sections, $provider = null)
+    {
+        $fullContent = '';
+        $chunkCount = 0;
+        
+        try {
+            // Send initial event
+            $this->sendEvent('start', [
+                'journal_id' => $journal->id,
+                'message' => 'AI started generating journal...'
+            ]);
+            
+            // Start AI generation with streaming
+            $this->aiService->generateJournalFromSections(
+                $sections,
+                function($chunk, $isComplete = false) use (&$fullContent, &$chunkCount, $journal) {
+                    if ($chunk !== null) {
+                        $fullContent .= $chunk;
+                        $chunkCount++;
+                        
+                        // Send chunk to client
+                        $this->sendEvent('chunk', [
+                            'chunk' => $chunk,
+                            'chunk_number' => $chunkCount,
+                            'total_length' => strlen($fullContent)
+                        ]);
+                    }
+                    
+                    if ($isComplete) {
+                        // Save completed content
+                        $this->saveCompletedJournal($journal, $fullContent);
+                        
+                        // Send completion event
+                        $this->sendEvent('complete', [
+                            'total_chunks' => $chunkCount,
+                            'total_length' => strlen($fullContent),
+                            'journal_id' => $journal->id,
+                            'message' => 'Journal generation complete!'
+                        ]);
+                    }
+                },
+                $provider
+            );
+            
+        } catch (\Exception $e) {
+            Log::error('Streaming failed', [
+                'journal_id' => $journal->id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            
+            $this->sendEvent('error', [
+                'message' => 'AI generation failed: ' . $e->getMessage(),
+                'journal_id' => $journal->id
+            ]);
+            
+            // Update journal status
+            $journal->update(['status' => 'ai_failed']);
+        }
+    }
+    
+    /**
+     * Send SSE event
+     */
+    private function sendEvent(string $event, array $data)
+    {
+        echo "event: {$event}\n";
+        echo "data: " . json_encode($data) . "\n\n";
+        
+        ob_flush();
+        flush();
+        
+        // Check if client disconnected
+        if (connection_aborted()) {
+            Log::info('Client disconnected during streaming');
+            exit;
+        }
+    }
+    
+    /**
+     * Save completed journal
+     */
+    private function saveCompletedJournal(Journal $journal, string $content)
+    {
+        $journal->update([
+            'ai_generated_content' => $content,
+            'status' => 'draft',
+            'ai_provider_used' => 'deepseek', // Would be dynamic in real implementation
+            'ai_usage_count' => $journal->ai_usage_count + 1,
+            'completed_at' => now(),
+        ]);
+        
+        Log::info('Journal AI generation completed', [
+            'journal_id' => $journal->id,
+            'content_length' => strlen($content),
+            'user_id' => $journal->user_id
+        ]);
+    }
+    
+    /**
+     * Check streaming status
+     */
+    public function checkStatus($journalId)
+    {
+        $journal = Journal::where('id', $journalId)
+            ->where('user_id', Auth::id())
+            ->firstOrFail();
+        
+        return response()->json([
+            'status' => $journal->status,
+            'ai_generated_content' => $journal->ai_generated_content,
+            'progress' => $journal->status === 'ai_processing' ? 'in_progress' : 'complete',
+            'ai_provider_used' => $journal->ai_provider_used,
+            'ai_usage_count' => $journal->ai_usage_count,
+        ]);
+    }
+    
+    /**
+     * Test AI providers
+     */
+    public function testProviders()
+    {
+        $status = $this->aiService->getProviderStatus();
+        $testResults = [];
+        
+        // Test each provider
+        foreach ($status as $provider => $config) {
+            if (!$config['configured']) {
+                $testResults[$provider] = 'not_configured';
+                continue;
+            }
+            
+            try {
+                // Quick test with small prompt
+                $testPrompt = 'Respond with "OK" if working.';
+                
+                switch ($provider) {
+                    case 'deepseek':
+                        $result = $this->aiService->callDeepSeek('Test', $testPrompt, null);
+                        break;
+                    case 'openai':
+                        $result = $this->aiService->callOpenAI('Test', $testPrompt, null);
+                        break;
+                    case 'gemini':
+                        $result = $this->aiService->callGemini('Test', $testPrompt, null);
+                        break;
+                    default:
+                        $result = null;
+                }
+                
+                $testResults[$provider] = strpos($result, 'OK') !== false ? 'working' : 'response_error';
+                
+            } catch (\Exception $e) {
+                $testResults[$provider] = 'error: ' . $e->getMessage();
+            }
+        }
+        
+        return response()->json([
+            'status' => $status,
+            'test_results' => $testResults,
+            'usage_stats' => $this->aiService->getUsageStats(),
+        ]);
+    }
+}
