@@ -1,11 +1,4 @@
-<div class="post-card" x-data="{
-    showComments: false,
-    commentContent: '',
-    isReview: false,
-    rating: 5,
-    comments: [],
-    loadingComments: false
-}">
+<div class="post-card" data-post='@json($post, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT)' x-data="postCard">
     <!-- Post Header -->
     <div class="p-6 pb-4">
         <div class="flex items-start justify-between">
@@ -63,29 +56,29 @@
             <p class="text-gray-800" x-text="post.content"></p>
             
             <!-- Journal Preview -->
-            <div x-show="post.journal" class="mt-4 bg-gray-50 border rounded-lg p-4">
+            <button type="button" x-show="post.journal" @click="showPdfViewer = true" class="mt-4 bg-gray-50 border rounded-lg p-4 text-left w-full hover:bg-gray-100">
                 <div class="flex items-start justify-between">
                     <div>
-                        <h4 class="font-bold text-gray-900" x-text="post.journal.title"></h4>
-                        <p class="text-sm text-gray-600 mt-1" x-text="post.journal.abstract"></p>
+                        <h4 class="font-bold text-gray-900" x-text="post.journal?.title"></h4>
+                        <p class="text-sm text-gray-600 mt-1" x-text="post.journal?.abstract"></p>
                         <div class="flex items-center mt-3 space-x-2">
                             <span class="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded"
-                                  x-text="post.journal.area_of_study"></span>
+                                  x-text="post.journal?.area_of_study"></span>
                             <span x-show="post.request_review" 
                                   class="text-xs bg-purple-100 text-purple-800 px-2 py-1 rounded">
                                 <i class="fas fa-star mr-1"></i>Review Requested
                             </span>
                         </div>
                     </div>
-                    <div class="text-right" x-show="post.reviews_count > 0">
+                    <div class="text-right" x-show="(post.reviews_count || 0) > 0">
                         <div class="text-2xl font-bold text-green-600" 
-                             x-text="post.average_rating.toFixed(1)"></div>
+                             x-text="(post.average_rating || 0).toFixed(1)"></div>
                         <div class="text-sm text-gray-500">
-                            <span x-text="post.reviews_count"></span> reviews
+                            <span x-text="post.reviews_count || 0"></span> reviews
                         </div>
                     </div>
                 </div>
-            </div>
+            </button>
         </div>
     </div>
 
@@ -103,7 +96,7 @@
             </button>
             <span x-show="post.type === 'journal'">
                 <i class="fas fa-star text-yellow-500 mr-1"></i>
-                <span x-text="post.reviews_count"></span> reviews
+                <span x-text="post.reviews_count || 0"></span> reviews
             </span>
         </div>
     </div>
@@ -133,10 +126,26 @@
             <span class="text-sm">Review</span>
         </button>
         
-        <button class="reaction-btn flex items-center justify-center space-x-2 p-2 rounded-lg text-gray-600">
+        <button @click="sharePost()" class="reaction-btn flex items-center justify-center space-x-2 p-2 rounded-lg text-gray-600">
             <i class="far fa-share-square"></i>
             <span class="text-sm">Share</span>
         </button>
+    </div>
+
+    <!-- PDF Viewer Modal -->
+    <div x-show="showPdfViewer" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60" style="display: none;">
+        <div class="bg-white w-full max-w-5xl h-[85vh] rounded-xl shadow-xl overflow-hidden">
+            <div class="flex items-center justify-between px-4 py-3 border-b">
+                <div class="font-semibold text-gray-800" x-text="post.journal?.title || 'Journal'"></div>
+                <button type="button" @click="showPdfViewer = false" class="text-gray-600 hover:text-gray-900">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="h-full">
+                <iframe x-show="pdfUrl" :src="pdfUrl" class="w-full h-full" title="Journal PDF"></iframe>
+                <div x-show="!pdfUrl" class="p-6 text-gray-600">PDF not available.</div>
+            </div>
+        </div>
     </div>
 
     <!-- Comments Section -->
@@ -165,9 +174,10 @@
                      class="w-8 h-8 rounded-full">
                 <div class="flex-1 relative">
                     <input type="text" 
+                           data-comment-input="1"
                            x-model="commentContent"
                            @keyup.enter="submitComment()"
-                           placeholder="Write a comment..."
+                           :placeholder="replyToId ? `Replying to ${replyToName || 'comment'}...` : 'Write a comment...'"
                            class="w-full border rounded-full py-2 px-4 pr-10 focus:ring-2 focus:ring-purple-500">
                     <button @click="submitComment()"
                             class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-purple-600">
@@ -226,7 +236,10 @@
                                     <i :class="comment.user_has_liked ? 'fas fa-thumbs-up' : 'far fa-thumbs-up'"></i>
                                     <span class="ml-1">Helpful</span>
                                 </button>
-                                <button class="hover:text-gray-700">
+                                <button @click="reportComment(comment.id)" class="hover:text-red-600">
+                                    Report
+                                </button>
+                                <button type="button" @click="startReply(comment)" class="hover:text-gray-700">
                                     Reply
                                 </button>
                                 <span x-text="formatTime(comment.created_at)"></span>
@@ -234,16 +247,315 @@
                         </div>
                     </div>
                 </div>
+                <div class="mt-2 pl-6 space-y-3" x-show="comment.replies && comment.replies.length">
+                    <template x-for="reply in (comment.replies || [])" :key="reply.id">
+                        <div class="flex space-x-3">
+                            <img :src="reply.user.profile_picture ? `/storage/${reply.user.profile_picture}` : 'https://via.placeholder.com/28'" class="w-7 h-7 rounded-full flex-shrink-0">
+                            <div class="flex-1">
+                                <div class="bg-white border rounded-lg p-3">
+                                    <div class="flex justify-between items-start">
+                                        <div>
+                                            <h4 class="font-semibold" x-text="reply.user.full_name"></h4>
+                                            <p class="text-xs text-gray-500" x-text="reply.user.position"></p>
+                                        </div>
+                                    </div>
+                                    <p class="mt-2 text-gray-700" x-text="reply.content"></p>
+                                    <div class="mt-3 flex items-center space-x-4 text-sm text-gray-500">
+                                        <button type="button" @click="likeComment(reply.id)" class="hover:text-blue-600">
+                                            <i :class="reply.user_has_liked ? 'fas fa-thumbs-up' : 'far fa-thumbs-up'"></i>
+                                            <span class="ml-1">Helpful</span>
+                                        </button>
+                                        <button type="button" @click="reportComment(reply.id)" class="hover:text-red-600">Report</button>
+                                        <button type="button" @click="startReply(comment)" class="hover:text-gray-700">Reply</button>
+                                        <span x-text="formatTime(reply.created_at)"></span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </template>
+                </div>
             </template>
         </div>
+    </div>
+
+    <div x-show="replyToId" class="mt-2 text-sm text-gray-600 flex items-center justify-between">
+        <span>
+            <span class="font-medium">Replying:</span>
+            <span x-text="replyToName"></span>
+        </span>
+        <button type="button" @click="cancelReply()" class="underline hover:text-gray-900">Cancel</button>
     </div>
 </div>
 
 <script>
+const registerPostCard = () => {
+    Alpine.data('postCard', () => ({
+        post: {},
+        csrf: '{{ csrf_token() }}',
+        showComments: false,
+        commentContent: '',
+        replyToId: null,
+        replyToName: '',
+        isReview: false,
+        rating: 5,
+        comments: [],
+        loadingComments: false,
+        showPdfViewer: false,
+
+        init() {
+            let parsed = {};
+            try {
+                parsed = JSON.parse(this.$el.dataset.post || '{}');
+            } catch (e) {
+                parsed = {};
+            }
+
+            if (!parsed || typeof parsed !== 'object') parsed = {};
+            if (!parsed.user || typeof parsed.user !== 'object') parsed.user = {};
+
+            if (!('likes_count' in parsed)) parsed.likes_count = 0;
+            if (!('comments_count' in parsed)) parsed.comments_count = 0;
+            if (!('reviews_count' in parsed)) parsed.reviews_count = 0;
+            if (!('average_rating' in parsed)) parsed.average_rating = 0;
+            if (!('user_has_liked' in parsed)) parsed.user_has_liked = false;
+
+            this.post = parsed;
+        },
+
+        get pdfUrl() {
+            if (!this.post || !this.post.journal) return null;
+            return `/journal/${this.post.journal.id}/pdf`;
+        },
+
+        async likePost(postId) {
+            try {
+                const response = await fetch(`/api/posts/${postId}/like`, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRF-TOKEN': this.csrf,
+                        'Accept': 'application/json',
+                    },
+                });
+
+                const contentType = response.headers.get('content-type') || '';
+                if (!contentType.includes('application/json')) {
+                    const text = await response.text();
+                    throw new Error(text || `Unexpected response (HTTP ${response.status})`);
+                }
+
+                const data = await response.json();
+                if (!response.ok || !data.success) {
+                    throw new Error(data.message || 'Failed to like post');
+                }
+
+                this.post.user_has_liked = data.action === 'liked';
+                this.post.likes_count = data.likes_count ?? this.post.likes_count;
+            } catch (e) {
+                alert(e.message);
+            }
+        },
+
+        async loadComments() {
+            if (!this.showComments) return;
+            this.loadingComments = true;
+            try {
+                const response = await fetch(`/api/posts/${this.post.id}/comments`, {
+                    headers: {
+                        'Accept': 'application/json',
+                    },
+                });
+
+                const contentType = response.headers.get('content-type') || '';
+                if (!contentType.includes('application/json')) {
+                    const text = await response.text();
+                    throw new Error(text || `Unexpected response (HTTP ${response.status})`);
+                }
+
+                const data = await response.json();
+                if (!response.ok || !data.success) {
+                    throw new Error(data.message || 'Failed to load comments');
+                }
+
+                const raw = data.comments || [];
+                this.comments = Array.isArray(raw) ? raw : (raw.data || []);
+            } catch (e) {
+                alert(e.message);
+            } finally {
+                this.loadingComments = false;
+            }
+        },
+
+        async submitComment() {
+            const content = (this.commentContent || '').trim();
+            if (!content) return;
+
+            try {
+                const payload = {
+                    content,
+                    is_review: !!this.isReview,
+                };
+
+                if (this.replyToId) {
+                    payload.parent_id = this.replyToId;
+                }
+
+                if (this.isReview) {
+                    payload.rating = this.rating;
+                }
+
+                const response = await fetch(`/api/posts/${this.post.id}/comment`, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRF-TOKEN': this.csrf,
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(payload),
+                });
+
+                const contentType = response.headers.get('content-type') || '';
+                if (!contentType.includes('application/json')) {
+                    const text = await response.text();
+                    throw new Error(text || `Unexpected response (HTTP ${response.status})`);
+                }
+
+                const data = await response.json();
+                if (!response.ok || !data.success) {
+                    if (data.errors) {
+                        const firstKey = Object.keys(data.errors)[0];
+                        const firstMsg = firstKey ? (data.errors[firstKey]?.[0] || data.errors[firstKey]) : null;
+                        throw new Error(firstMsg || data.message || 'Failed to add comment');
+                    }
+                    throw new Error(data.message || 'Failed to add comment');
+                }
+
+                if (data.comment) {
+                    if (!Array.isArray(this.comments)) {
+                        this.comments = [];
+                    }
+                    this.comments.unshift(data.comment);
+                }
+
+                this.post.comments_count = (this.post.comments_count || 0) + 1;
+                if (this.isReview && this.post.type === 'journal') {
+                    this.post.reviews_count = (this.post.reviews_count || 0) + 1;
+                }
+
+                this.commentContent = '';
+                this.replyToId = null;
+                this.replyToName = '';
+            } catch (e) {
+                alert(e.message);
+            }
+        },
+
+        startReply(comment) {
+            this.replyToId = comment.id;
+            this.replyToName = comment.user?.full_name || '';
+            this.isReview = false;
+            this.commentContent = '';
+            this.$nextTick(() => {
+                const el = this.$root.querySelector('input[data-comment-input="1"]');
+                if (el) el.focus();
+            });
+        },
+
+        cancelReply() {
+            this.replyToId = null;
+            this.replyToName = '';
+        },
+
+        async likeComment(commentId) {
+            try {
+                const response = await fetch(`/api/comments/${commentId}/like`, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRF-TOKEN': this.csrf,
+                        'Accept': 'application/json',
+                    },
+                });
+
+                const contentType = response.headers.get('content-type') || '';
+                if (!contentType.includes('application/json')) {
+                    const text = await response.text();
+                    throw new Error(text || `Unexpected response (HTTP ${response.status})`);
+                }
+
+                const data = await response.json();
+                if (!response.ok || !data.success) {
+                    throw new Error(data.message || 'Failed to like comment');
+                }
+
+                const idx = this.comments.findIndex(c => c.id === commentId);
+                if (idx !== -1) {
+                    this.comments[idx].user_has_liked = data.action === 'liked';
+                    this.comments[idx].likes_count = data.likes_count ?? this.comments[idx].likes_count;
+                }
+            } catch (e) {
+                alert(e.message);
+            }
+        },
+
+        async reportComment(commentId) {
+            try {
+                const reason = prompt('Report reason (e.g., spam, harassment, misinformation):');
+                if (!reason) return;
+
+                const details = prompt('Optional details (you can leave blank):') || '';
+
+                const response = await fetch(`/comments/${commentId}/report`, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRF-TOKEN': this.csrf,
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ reason, details }),
+                });
+
+                if (!response.ok) {
+                    const contentType = response.headers.get('content-type') || '';
+                    if (contentType.includes('application/json')) {
+                        const data = await response.json().catch(() => null);
+                        throw new Error((data && (data.message || (data.errors && JSON.stringify(data.errors)))) || `Failed to report (HTTP ${response.status})`);
+                    }
+                    const text = await response.text().catch(() => '');
+                    throw new Error(text || `Failed to report (HTTP ${response.status})`);
+                }
+
+                alert('Report submitted.');
+            } catch (e) {
+                alert(e.message);
+            }
+        },
+
+        async sharePost() {
+            try {
+                const url = `${window.location.origin}/posts/${this.post.id}`;
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                    await navigator.clipboard.writeText(url);
+                    alert('Link copied');
+                } else {
+                    prompt('Copy link:', url);
+                }
+            } catch (e) {
+                alert('Failed to share');
+            }
+        },
+    }));
+};
+
+if (window.Alpine) {
+    registerPostCard();
+} else {
+    document.addEventListener('alpine:init', registerPostCard);
+}
+
 // Format time helper
 function formatTime(dateString) {
     const date = new Date(dateString);
     const now = new Date();
+
     const diff = Math.floor((now - date) / 1000); // difference in seconds
     
     if (diff < 60) return 'Just now';

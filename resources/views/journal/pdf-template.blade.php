@@ -99,105 +99,218 @@
     </style>
 </head>
 <body>
-    <!-- Journal Header -->
-    <div class="journal-header">
-        <div class="journal-title">Journal of Natural Sciences Research</div>
-        <div class="issn">ISSN 2224-3186 (Paper)   ISSN 2225-0921 (Online)</div>
-        <div class="volume">Vol.7, No.10, 2017</div>
-        <div class="url">www.iiste.org</div>
-    </div>
+    @php
+        $toText = function ($value): string {
+            if (is_null($value)) {
+                return '';
+            }
 
-    <!-- Paper Title -->
-    <div class="paper-title">{{ $journal->title }}</div>
+            if (is_bool($value)) {
+                return $value ? '1' : '0';
+            }
+
+            if (is_array($value)) {
+                $flat = [];
+                $iterator = new \RecursiveIteratorIterator(new \RecursiveArrayIterator($value));
+                foreach ($iterator as $v) {
+                    if (is_scalar($v) || is_null($v)) {
+                        $flat[] = (string) $v;
+                    }
+                }
+                $text = implode("\n", $flat);
+            } else {
+                $text = (string) $value;
+            }
+
+            $text = html_entity_decode($text, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+            $text = strip_tags($text);
+            
+            // Clean markdown formatting
+            $text = preg_replace('/\*\*(.*?)\*\*/', '$1', $text); // Remove **bold**
+            $text = preg_replace('/\*\*(.*?)\*\*/', '$2', $text); // Remove **bold**
+            $text = preg_replace('/\*(.*?)\*/', '$1', $text);     // Remove *italic*
+            $text = preg_replace('/#{1,6}\s*(.*)/', '$1', $text);   // Remove # headers
+            $text = preg_replace('/\[([^\]]+)\]\([^\)]+\)/', '$1', $text); // Remove [text](url) links
+            $text = preg_replace('/`([^`]+)`/', '$1', $text);       // Remove `code`
+            $text = preg_replace('/```([\s\S]*?)```/', '$1', $text); // Remove ```code blocks```
+            
+            // Clean up extra whitespace
+            $text = preg_replace('/\n{3,}/', '\n\n', $text);     // Reduce multiple newlines
+            $text = trim($text);
+            
+            return $text;
+        };
+    @endphp
+
+    <div class="paper-title">
+        <?php echo $toText($journal->title); ?>
+    </div>
 
     <!-- Authors -->
     <div class="authors">
-        @if(isset($journal->raw_content['authors']))
-            {!! nl2br(htmlspecialchars($journal->raw_content['authors'])) !!}
-        @else
-            {{ $journal->user->full_name }}
-        @endif
+        <?php if(!empty($content['authors'])): ?>
+            <?php echo nl2br(htmlspecialchars($toText($content['authors']))); ?>
+        <?php else: ?>
+            <?php echo $toText($journal->user->full_name); ?>
+        <?php endif; ?>
     </div>
 
     <!-- Affiliations -->
     <div class="affiliations">
-        {{ $journal->user->institution }}
-        @if($journal->user->department)
-            • {{ $journal->user->department }}
-        @endif
+        <?php echo $toText($journal->user->institution); ?>
+        <?php if($journal->user->department): ?>
+            • <?php echo $toText($journal->user->department); ?>
+        <?php endif; ?>
     </div>
 
-    <!-- Abstract -->
-    <div class="section">
-        <div class="section-title">Abstract</div>
-        <div class="abstract">
-            {{ $journal->raw_content['abstract'] ?? '' }}
-        </div>
-    </div>
+
 
     <!-- Keywords -->
-    <div class="keywords">
-        <strong>Keywords:</strong> 
-        @if(isset($journal->raw_content['keywords']))
-            {{ $journal->raw_content['keywords'] }}
-        @else
-            {{ $journal->raw_content['area_of_study'] ?? '' }}
-        @endif
-    </div>
+    <?php if(!empty($content['keywords'] ?? null)): ?>
+        <div class="keywords">
+            <strong>Keywords:</strong> <?php echo nl2br(htmlspecialchars($toText($content['keywords']))); ?>
+        </div>
+    <?php endif; ?>
+
+    <!-- Abstract -->
+    <?php if(!empty($content['abstract'] ?? null)): ?>
+        <div class="section">
+            <div class="section-title">ABSTRACT</div>
+            <div class="abstract">
+                <?php if(!empty($content['abstract_html'])): ?>
+                    <?php echo $content['abstract_html']; ?>
+                <?php else: ?>
+                    <?php echo nl2br(htmlspecialchars($toText($content['abstract']))); ?>
+                <?php endif; ?>
+            </div>
+        </div>
+    <?php endif; ?>
 
     <!-- Introduction -->
-    <div class="section">
-        <div class="section-title">1.0 INTRODUCTION</div>
-        <div>
-            {{ $journal->raw_content['introduction'] ?? '' }}
+    <?php if(!empty($content['introduction'] ?? null)): ?>
+        <div class="section">
+            <div class="section-title">INTRODUCTION</div>
+            <div>
+                <?php if(!empty($content['introduction_html'])): ?>
+                    <?php echo $content['introduction_html']; ?>
+                <?php else: ?>
+                    <?php echo nl2br(htmlspecialchars($toText($content['introduction']))); ?>
+                <?php endif; ?>
+            </div>
         </div>
-    </div>
+    <?php endif; ?>
+
+    <!-- Area of Study -->
+    <?php if(!empty($content['area_of_study'] ?? null)): ?>
+        <div class="section">
+            <div class="section-title">AREA OF STUDY</div>
+            <div>
+                <?php if(!empty($content['area_of_study_html'])): ?>
+                    <?php echo $content['area_of_study_html']; ?>
+                <?php else: ?>
+                    <?php echo nl2br(htmlspecialchars($toText($content['area_of_study']))); ?>
+                <?php endif; ?>
+            </div>
+        </div>
+    <?php endif; ?>
 
     <!-- Methodology -->
-    <div class="section">
-        <div class="section-title">2.0 METHODOLOGY</div>
-        <div>
-            {{ $journal->raw_content['methodology'] ?? '' }}
+    <?php if(!empty($content['methodology'] ?? null)): ?>
+        <div class="section">
+            <div class="section-title">METHODOLOGY</div>
+            <div>
+                <?php if(!empty($content['methodology_html'])): ?>
+                    <?php echo $content['methodology_html']; ?>
+                <?php else: ?>
+                    <?php echo nl2br(htmlspecialchars($toText($content['methodology']))); ?>
+                <?php endif; ?>
+            </div>
         </div>
-    </div>
+    <?php endif; ?>
 
-    <!-- Results -->
-    <div class="section">
-        <div class="section-title">3.0 RESULTS</div>
-        <div>
-            {{ $journal->raw_content['results'] ?? '' }}
+    <!-- Results & Discussion -->
+    <?php if(!empty($content['results_discussion'] ?? null)): ?>
+        <div class="section">
+            <div class="section-title">RESULTS & DISCUSSION</div>
+            <div>
+                <?php if(!empty($content['results_discussion_html'])): ?>
+                    <?php echo $content['results_discussion_html']; ?>
+                <?php else: ?>
+                    <?php echo nl2br(htmlspecialchars($toText($content['results_discussion']))); ?>
+                <?php endif; ?>
+            </div>
         </div>
-    </div>
-
-    <!-- Discussion -->
-    <div class="section">
-        <div class="section-title">4.0 DISCUSSION</div>
-        <div>
-            {{ $journal->raw_content['discussion'] ?? '' }}
-        </div>
-    </div>
+    <?php endif; ?>
 
     <!-- Conclusion -->
-    <div class="section">
-        <div class="section-title">5.0 CONCLUSION</div>
-        <div>
-            {{ $journal->raw_content['conclusion'] ?? '' }}
+    <?php if(!empty($content['conclusion'] ?? null)): ?>
+        <div class="section">
+            <div class="section-title">CONCLUSION</div>
+            <div>
+                <?php if(!empty($content['conclusion_html'])): ?>
+                    <?php echo $content['conclusion_html']; ?>
+                <?php else: ?>
+                    <?php echo nl2br(htmlspecialchars($toText($content['conclusion']))); ?>
+                <?php endif; ?>
+            </div>
         </div>
-    </div>
+    <?php endif; ?>
 
-    <!-- References -->
+    <!-- Additional Notes -->
+    <?php if(!empty($content['additional_notes'] ?? null)): ?>
+        <div class="section">
+            <div class="section-title">ADDITIONAL NOTES</div>
+            <div>
+                <?php if(!empty($content['additional_notes_html'])): ?>
+                    <?php echo $content['additional_notes_html']; ?>
+                <?php else: ?>
+                    <?php echo nl2br(htmlspecialchars($toText($content['additional_notes']))); ?>
+                <?php endif; ?>
+            </div>
+        </div>
+    <?php endif; ?>
+
+    <?php
+        $hasBody = !empty($content['abstract'] ?? null)
+            || !empty($content['introduction'] ?? null)
+            || !empty($content['area_of_study'] ?? null)
+            || !empty($content['methodology'] ?? null)
+            || !empty($content['results_discussion'] ?? null)
+            || !empty($content['references'] ?? null)
+            || !empty($content['conclusion'] ?? null);
+    ?>
+
+    <?php if(!$hasBody && !empty($content['ai_generated_content'] ?? $journal->ai_generated_content ?? null)): ?>
+        <div class="section">
+            <div class="section-title"></div>
+            <div>
+                <?php if(!empty($content['ai_generated_content_html'])): ?>
+                    <?php echo $content['ai_generated_content_html']; ?>
+                <?php else: ?>
+                    <?php echo nl2br(htmlspecialchars($toText($content['ai_generated_content'] ?? $journal->ai_generated_content ?? ''))); ?>
+                <?php endif; ?>
+            </div>
+        </div>
+    <?php endif; ?>
+
+    <!-- References 
     <div class="section">
         <div class="section-title">REFERENCES</div>
-        <div>
-            @if(isset($journal->raw_content['references']))
-                {!! nl2br(htmlspecialchars($journal->raw_content['references'])) !!}
-            @endif
-        </div>
-    </div>
+            <div>
+                <?php $refs = $content['references'] ?? $journal->references ?? null; ?>
+                <?php if(!empty($content['references_html'])): ?>
+                    <?php echo $content['references_html']; ?>
+                <?php else: ?>
+                    <?php if(!empty($refs)): ?>
+                        <?php echo nl2br(htmlspecialchars($toText($refs))); ?>
+                    <?php endif; ?>
+                <?php endif; ?>
+            </div>
+    </div>-->
 
-    <!-- Page Numbers -->
+    <!-- Page Numbers 
     <div class="page-number">
         <span class="page">Page 1</span>
-    </div>
+    </div>-->
 </body>
 </html>

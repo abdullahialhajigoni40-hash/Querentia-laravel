@@ -7,12 +7,24 @@ use App\Models\Journal;
 use App\Models\Comment;
 use App\Models\Like;
 use App\Models\Notification;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Validator;
 
 class PostController extends Controller
 {
+    public function show(Post $post)
+    {
+        $post->load(['user', 'journal']);
+        $post->loadCount(['likes', 'comments']);
+        $post->user_has_liked = $post->hasLiked(Auth::id());
+
+        return view('posts.show', [
+            'post' => $post,
+        ]);
+    }
+
     // Create a new post
     public function store(Request $request)
     {
@@ -130,11 +142,13 @@ class PostController extends Controller
                 Notification::create([
                     'user_id' => $post->user_id,
                     'type' => 'post_liked',
-                    'data' => json_encode([
+                    'title' => 'New Like',
+                    'message' => Auth::user()->full_name . ' liked your post',
+                    'data' => [
                         'post_id' => $post->id,
                         'liker_id' => $userId,
                         'liker_name' => Auth::user()->full_name
-                    ]),
+                    ],
                     'read_at' => null
                 ]);
             }
@@ -184,12 +198,14 @@ class PostController extends Controller
             Notification::create([
                 'user_id' => $post->user_id,
                 'type' => 'post_reviewed',
-                'data' => json_encode([
+                'title' => 'New Review',
+                'message' => Auth::user()->full_name . ' reviewed your post',
+                'data' => [
                     'post_id' => $post->id,
                     'reviewer_id' => Auth::id(),
                     'reviewer_name' => Auth::user()->full_name,
                     'rating' => $request->rating
-                ]),
+                ],
                 'read_at' => null
             ]);
         }
@@ -204,12 +220,14 @@ class PostController extends Controller
                 Notification::create([
                     'user_id' => $parentComment->user_id,
                     'type' => 'comment_replied',
-                    'data' => json_encode([
+                    'title' => 'New Reply',
+                    'message' => Auth::user()->full_name . ' replied to your comment',
+                    'data' => [
                         'post_id' => $post->id,
                         'comment_id' => $parentComment->id,
                         'replier_id' => Auth::id(),
                         'replier_name' => Auth::user()->full_name
-                    ]),
+                    ],
                     'read_at' => null
                 ]);
             }
@@ -294,13 +312,15 @@ class PostController extends Controller
             Notification::create([
                 'user_id' => $user->id,
                 'type' => 'review_requested',
-                'data' => json_encode([
+                'title' => 'Review Requested',
+                'message' => Auth::user()->full_name . ' requested a review',
+                'data' => [
                     'post_id' => $post->id,
                     'journal_id' => $post->journal_id,
                     'requester_id' => Auth::id(),
                     'requester_name' => Auth::user()->full_name,
                     'journal_title' => $post->journal->title ?? 'Untitled'
-                ]),
+                ],
                 'read_at' => null
             ]);
         }
