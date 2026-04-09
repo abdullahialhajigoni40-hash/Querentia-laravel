@@ -18,6 +18,8 @@ class Journal extends Model
         'introduction',
         'area_of_study',
         'additional_notes',
+        'methodology',
+        'methodology_blocks',
         'materials_methods',
         'results_discussion',
         'conclusion',
@@ -27,14 +29,29 @@ class Journal extends Model
         'original_sections',
         'raw_content',
         'ai_generated_content',
+        'ai_edited_content',
+        'source_document_disk',
+        'source_document_path',
+        'source_document_original_name',
+        'source_document_mime',
+        'source_document_size',
+        'source_extracted_text',
+        'source_word_count',
+        'source_page_count',
+        'ingestion_status',
+        'ingestion_progress',
+        'ingestion_error',
         'status',
+        'is_ai_journal',
         'journal_name',
         'journal_template',
+        'license',
         'ai_provider_used',
         'ai_usage_count',
         'published_at',
         'completed_at',
         'posted_for_review_at',
+        'average_rating',
     ];
     
     protected $casts = [
@@ -44,6 +61,10 @@ class Journal extends Model
         'maps_figures' => 'array',
         'original_sections' => 'array',
         'raw_content' => 'array',
+        'methodology_blocks' => 'array',
+        'source_word_count' => 'integer',
+        'source_page_count' => 'integer',
+        'ingestion_progress' => 'integer',
         'published_at' => 'datetime',
         'completed_at' => 'datetime',
         'posted_for_review_at' => 'datetime',
@@ -80,6 +101,21 @@ class Journal extends Model
     public function reviews()
     {
         return $this->hasMany(ReviewFeedback::class);
+    }
+
+    public function images()
+    {
+        return $this->hasMany(JournalImage::class);
+    }
+
+    public function figures()
+    {
+        return $this->hasMany(JournalImage::class)->where('kind', 'figure')->orderBy('sort_order')->orderBy('id');
+    }
+
+    public function peerReviews()
+    {
+        return $this->hasMany(PeerReview::class);
     }
 
 
@@ -167,11 +203,12 @@ public function formatAIContent(?string $content): string
      */
     public function getWordCountAttribute()
     {
-        if (!$this->ai_generated_content) {
+        $src = $this->ai_edited_content ?: $this->ai_generated_content;
+        if (!$src) {
             return 0;
         }
         
-        return str_word_count(strip_tags($this->ai_generated_content));
+        return str_word_count(strip_tags($src));
     }
     
     /**
@@ -209,5 +246,18 @@ public function formatAIContent(?string $content): string
         }
         
         return $this->reviews->avg('rating');
+    }
+    
+    /**
+     * Update average rating from peer reviews
+     */
+    public function updateAverageRating()
+    {
+        $completedReviews = $this->peerReviews()->where('status', 'completed');
+        
+        if ($completedReviews->count() > 0) {
+            $this->average_rating = $completedReviews->avg('rating');
+            $this->save();
+        }
     }
 }

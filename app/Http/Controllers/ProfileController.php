@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\User;
 use App\Models\UserProfile;
+use App\Models\Post;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
@@ -14,13 +15,33 @@ class ProfileController extends Controller
     public function show(User $user = null)
     {
         $profileUser = $user ?? Auth::user();
+        $authUser = Auth::user();
+        $isOwnProfile = !$user || $profileUser->id === $authUser->id;
         
         // Load profile with connections count
         $profileUser->load(['profile', 'journals']);
+
+        $postsQuery = Post::with(['user', 'journal'])
+            ->withCount(['likes', 'comments'])
+            ->where('user_id', $profileUser->id)
+            ->latest();
+
+        if (!$isOwnProfile) {
+            $postsQuery->where(function ($q) use ($authUser, $profileUser) {
+                $q->where('visibility', 'public');
+
+                if ($authUser && method_exists($authUser, 'isConnectedTo') && $authUser->isConnectedTo($profileUser->id)) {
+                    $q->orWhere('visibility', 'connections');
+                }
+            });
+        }
+
+        $posts = $postsQuery->paginate(10);
         
         return view('profile.show', [
             'user' => $profileUser,
-            'isOwnProfile' => !$user || $user->id === Auth::id(),
+            'isOwnProfile' => $isOwnProfile,
+            'posts' => $posts,
             'connectionStatus' => $this->getConnectionStatus($profileUser)
         ]);
     }
@@ -53,6 +74,7 @@ class ProfileController extends Controller
             'research_interests' => 'nullable|string',
             'website' => 'nullable|url',
             'linkedin' => 'nullable|string',
+            'orcid' => 'nullable|string|max:255',
             'twitter' => 'nullable|string',
             'google_scholar' => 'nullable|string',
             'researchgate' => 'nullable|string',
@@ -85,6 +107,7 @@ class ProfileController extends Controller
             'bio' => $validated['bio'] ?? null,
             'website' => $validated['website'] ?? null,
             'linkedin' => $validated['linkedin'] ?? null,
+            'orcid' => $validated['orcid'] ?? null,
             'twitter' => $validated['twitter'] ?? null,
             'google_scholar' => $validated['google_scholar'] ?? null,
             'researchgate' => $validated['researchgate'] ?? null,

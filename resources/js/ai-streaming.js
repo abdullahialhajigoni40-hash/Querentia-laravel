@@ -1,3 +1,4 @@
+// Version: 2.0 - Fixed URL length issue with POST requests
 /**
  * Querentia AI - Streaming Module
  * Handles real-time SSE communication with the AI generation backend.
@@ -27,61 +28,74 @@ class AIStreaming {
         this.isStreaming = true;
 
         try {
-            // Because EventSource only supports GET by default, 
-            // we use a standard fetch POST to trigger the stream if needed, 
-            // OR we append the data as a query string for simple SSE.
-            // However, since journal sections are large, we use a URL reference.
-            
             const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
             
-            // Note: We are using EventSource. Since it's GET based, 
-            // the Controller is set up to handle the incoming request.
-            // For large section data, we typically pass it through a session-based 
-            // trigger or encoded params. Here we assume the standard SSE route.
-            
-            const queryString = new URLSearchParams({
-                sections: JSON.stringify(payload.sections),
-                provider: payload.provider || 'deepseek'
-            }).toString();
-
-            this.eventSource = new EventSource(`${url}?${queryString}`);
-
-            // 1. Listen for Start
-            this.eventSource.addEventListener('start', (e) => {
-                const data = JSON.parse(e.data);
-                this.options.onStart(data);
+            // For large content, use POST request with fetch for streaming
+            // This avoids URL length limits with EventSource
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': csrfToken,
+                    'Accept': 'text/event-stream',
+                },
+                body: JSON.stringify(payload)
             });
 
-            // 2. Listen for Chunks (The "Typing" effect)
-            this.eventSource.addEventListener('chunk', (e) => {
-                const data = JSON.parse(e.data);
-                if (data.content) {
-                    this.options.onChunk(data.content);
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+
+            // Handle streaming response
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+            let buffer = '';
+
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+
+                buffer += decoder.decode(value, { stream: true });
+                const lines = buffer.split('\n');
+                buffer = lines.pop(); // Keep incomplete line in buffer
+
+                for (const line of lines) {
+                    if (line.startsWith('event: ')) {
+                        this.currentEvent = line.substring(7);
+                    } else if (line.startsWith('data: ')) {
+                        const data = JSON.parse(line.substring(6));
+                        this.handleEvent(this.currentEvent, data);
+                    }
                 }
-            });
-
-            // 3. Listen for Completion
-            this.eventSource.addEventListener('complete', (e) => {
-                const data = JSON.parse(e.data);
-                this.stop();
-                this.options.onComplete(data);
-            });
-
-            // 4. Handle Errors
-            this.eventSource.addEventListener('error', (e) => {
-                let message = 'An error occurred during generation.';
-                try {
-                    const data = JSON.parse(e.data);
-                    message = data.message || message;
-                } catch(err) { /* use default message */ }
-                
-                this.stop();
-                this.options.onError(message);
-            });
+            }
 
         } catch (error) {
             this.stop();
             this.options.onError(error.message);
+        }
+    }
+
+    handleEvent(eventType, data) {
+        switch (eventType) {
+            case 'start':
+                this.options.onStart(data);
+                break;
+            case 'chunk':
+                if (data.content) {
+                    this.options.onChunk(data.content);
+                }
+                break;
+            case 'complete':
+                this.stop();
+                this.options.onComplete(data);
+                break;
+            case 'server-error':
+                const message = data.message || 'An error occurred during generation.';
+                this.stop();
+                this.options.onError(message);
+                break;
+            default:
+                console.log('Unknown event type:', eventType, data);
         }
     }
 
@@ -105,8 +119,8 @@ window.QuerentiaAI = {
 
     generate: async function(journalId, sections, provider) {
         const url = journalId 
-            ? `/journal/stream/${journalId}` 
-            : '/journal/stream';
+            ? `/ai/stream/${journalId}` 
+            : '/ai/stream';             
             
         if (!this.instance) {
             console.error('AI Streaming not initialized. Call initStreaming first.');

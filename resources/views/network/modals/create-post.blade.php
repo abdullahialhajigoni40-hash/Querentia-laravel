@@ -20,8 +20,8 @@
             <!-- Post Type Selection -->
             <div class="mb-6">
                 <label class="block text-sm font-medium text-gray-700 mb-3">Post Type</label>
-                <div class="grid grid-cols-2 md:grid-cols-4 gap-2">
-                    <button @click="postType = 'journal'" 
+                <div class="grid grid-cols-2 md:grid-cols-2 gap-2">
+                    <button @click="setPostType('journal')" 
                             :class="postType === 'journal' ? 'bg-purple-100 border-purple-500 text-purple-700' : 'bg-gray-50 border-gray-300 text-gray-700'"
                             class="flex flex-col items-center justify-center p-4 border rounded-lg transition hover:bg-gray-100">
                         <i class="fas fa-file-alt text-xl mb-2"></i>
@@ -29,28 +29,12 @@
                         <span class="text-xs text-gray-500 mt-1">Share for review</span>
                     </button>
                     
-                    <button @click="postType = 'discussion'" 
+                    <button @click="setPostType('discussion')" 
                             :class="postType === 'discussion' ? 'bg-blue-100 border-blue-500 text-blue-700' : 'bg-gray-50 border-gray-300 text-gray-700'"
                             class="flex flex-col items-center justify-center p-4 border rounded-lg transition hover:bg-gray-100">
                         <i class="fas fa-comments text-xl mb-2"></i>
                         <span class="text-sm font-medium">Discussion</span>
                         <span class="text-xs text-gray-500 mt-1">Start conversation</span>
-                    </button>
-                    
-                    <button @click="postType = 'question'" 
-                            :class="postType === 'question' ? 'bg-yellow-100 border-yellow-500 text-yellow-700' : 'bg-gray-50 border-gray-300 text-gray-700'"
-                            class="flex flex-col items-center justify-center p-4 border rounded-lg transition hover:bg-gray-100">
-                        <i class="fas fa-question-circle text-xl mb-2"></i>
-                        <span class="text-sm font-medium">Question</span>
-                        <span class="text-xs text-gray-500 mt-1">Ask the community</span>
-                    </button>
-                    
-                    <button @click="postType = 'poll'" 
-                            :class="postType === 'poll' ? 'bg-green-100 border-green-500 text-green-700' : 'bg-gray-50 border-gray-300 text-gray-700'"
-                            class="flex flex-col items-center justify-center p-4 border rounded-lg transition hover:bg-gray-100">
-                        <i class="fas fa-poll text-xl mb-2"></i>
-                        <span class="text-sm font-medium">Poll</span>
-                        <span class="text-xs text-gray-500 mt-1">Gather opinions</span>
                     </button>
                 </div>
             </div>
@@ -60,23 +44,7 @@
                  x-cloak
                  class="mb-6 transition-all duration-300">
                 <label class="block text-sm font-medium text-gray-700 mb-2">Select Journal to Share</label>
-                <div x-data="{
-                    userJournals: [],
-                    loadingJournals: false,
-                    selectedJournalId: null,
-                    loadJournals() {
-                        this.loadingJournals = true;
-                        fetch('/api/user/journals')
-                            .then(response => response.json())
-                            .then(data => {
-                                if (data.success) {
-                                    this.userJournals = data.journals;
-                                }
-                                this.loadingJournals = false;
-                            })
-                            .catch(() => this.loadingJournals = false);
-                    }
-                }" x-init="loadJournals()">
+                <div>
                     
                     <div x-show="loadingJournals" class="text-center py-4">
                         <i class="fas fa-spinner fa-spin text-gray-400"></i>
@@ -86,13 +54,13 @@
                     <div x-show="!loadingJournals && userJournals.length === 0" class="bg-gray-50 rounded-lg p-4 text-center">
                         <i class="fas fa-file-alt text-3xl text-gray-300 mb-2"></i>
                         <p class="text-gray-600">No journals found</p>
-                        <a href="{{ route('ai-studio') }}" class="text-purple-600 text-sm hover:text-purple-800 mt-2 inline-block">
+                        <a href="{{ route('create_journal') }}" class="text-purple-600 text-sm hover:text-purple-800 mt-2 inline-block">
                             Create a journal first →
                         </a>
                     </div>
                     
                     <div x-show="!loadingJournals && userJournals.length > 0">
-                        <select x-model="selectedJournalId"
+                        <select x-model="selectedJournalId" @change="onJournalSelected()"
                                 class="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-purple-500 focus:border-transparent">
                             <option value="">Choose a journal...</option>
                             <template x-for="journal in userJournals" :key="journal.id">
@@ -120,7 +88,7 @@
                         <!-- Review Request Option -->
                         <div class="mt-4">
                             <label class="flex items-center">
-                                <input type="checkbox" id="request_review" name="request_review" class="rounded border-gray-300 text-purple-600 focus:ring-purple-500">
+                                <input type="checkbox" x-model="requestReview" class="rounded border-gray-300 text-purple-600 focus:ring-purple-500">
                                 <span class="ml-2 text-sm text-gray-700">Request peer review</span>
                             </label>
                             <p class="text-xs text-gray-500 mt-1 ml-6">
@@ -131,61 +99,46 @@
                 </div>
             </div>
 
-            <!-- Poll Options (only for poll posts) -->
-            <div x-show="postType === 'poll'" 
-                 x-cloak
-                 class="mb-6 transition-all duration-300">
-                <label class="block text-sm font-medium text-gray-700 mb-2">Poll Options</label>
-                <div x-data="{
-                    pollOptions: ['', ''],
-                    addOption() {
-                        if (this.pollOptions.length < 6) {
-                            this.pollOptions.push('');
-                        }
-                    },
-                    removeOption(index) {
-                        if (this.pollOptions.length > 2) {
-                            this.pollOptions.splice(index, 1);
-                        }
-                    }
-                }">
-                    <template x-for="(option, index) in pollOptions" :key="index">
-                        <div class="flex items-center space-x-2 mb-2">
-                            <input type="text" 
-                                   x-model="pollOptions[index]"
-                                   placeholder="Option text..."
-                                   class="flex-1 border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-green-500 focus:border-transparent">
-                            <button @click="removeOption(index)" 
-                                    x-show="pollOptions.length > 2"
-                                    class="text-red-500 hover:text-red-700">
-                                <i class="fas fa-times"></i>
-                            </button>
-                        </div>
-                    </template>
-                    <button @click="addOption()" 
-                            x-show="pollOptions.length < 6"
-                            class="text-green-600 hover:text-green-800 text-sm font-medium">
-                        <i class="fas fa-plus mr-1"></i>Add Option
+            <!-- Journal Post Copy (Title + Description) -->
+            <div x-show="postType === 'journal'" x-cloak class="mb-6">
+                <div class="flex items-center justify-between mb-2">
+                    <label class="block text-sm font-medium text-gray-700">Post Title (optional)</label>
+                    <button @click="generateAIPostCopy()"
+                            :disabled="generatingPostCopy || !selectedJournalId"
+                            :class="(generatingPostCopy || !selectedJournalId) ? 'opacity-60 cursor-not-allowed' : 'hover:bg-purple-50'"
+                            class="text-sm px-3 py-1.5 border border-purple-300 text-purple-700 rounded-lg">
+                        <span x-show="!generatingPostCopy"><i class="fas fa-robot mr-1"></i>Use AI</span>
+                        <span x-show="generatingPostCopy"><i class="fas fa-spinner fa-spin mr-1"></i>Writing...</span>
                     </button>
                 </div>
+                <input type="text"
+                       x-model="postTitle"
+                       placeholder="AI can suggest a title, or write your own"
+                       class="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-purple-500 focus:border-transparent">
+
+                <label class="block text-sm font-medium text-gray-700 mb-2 mt-4">Post Description</label>
+                <textarea x-model="postDescription"
+                          rows="4"
+                          placeholder="Explain what kind of review/feedback you want"
+                          class="w-full border border-gray-300 rounded-lg p-4 focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none"></textarea>
             </div>
 
             <!-- Content Textarea -->
             <div class="mb-6">
                 <label class="block text-sm font-medium text-gray-700 mb-2">
-                    <span x-text="getContentLabel()"></span>
+                    <span x-text="contentLabel()"></span>
                     <span class="text-red-500">*</span>
                 </label>
-                <textarea x-model="postContent"
+                <textarea x-model="postContent" x-show="postType !== 'journal'" x-cloak
                           placeholder="What would you like to share?"
                           rows="6"
                           class="w-full border border-gray-300 rounded-lg p-4 focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none"
-                          x-bind:placeholder="getPlaceholder()"></textarea>
+                          x-bind:placeholder="placeholder()"></textarea>
                 <div class="flex justify-between items-center mt-2">
                     <span class="text-xs text-gray-500">
-                        <span x-text="postContent.length"></span>/5000 characters
+                        <span x-text="buildPostContent().length"></span>/5000 characters
                     </span>
-                    <span x-show="postContent.length < 10" class="text-xs text-red-500">
+                    <span x-show="buildPostContent().length < 10" class="text-xs text-red-500">
                         Minimum 10 characters required
                     </span>
                 </div>
@@ -243,116 +196,6 @@
         </div>
     </div>
 </div>
-
-<script>
-// Helper functions for the modal
-function getContentLabel() {
-    switch (this.postType) {
-        case 'journal': return 'Share your thoughts about this journal';
-        case 'question': return 'Your question';
-        case 'poll': return 'Poll question';
-        default: return 'Content';
-    }
-}
-
-function getPlaceholder() {
-    switch (this.postType) {
-        case 'journal': return 'Share why you\'re posting this journal and what kind of feedback you\'re looking for...';
-        case 'question': return 'What would you like to ask the academic community? Be specific for better answers...';
-        case 'poll': return 'What would you like to poll the community about?';
-        default: return 'Share your thoughts, insights, or start a discussion...';
-    }
-}
-
-function formatDate(dateString) {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', { 
-        month: 'short', 
-        day: 'numeric',
-        year: 'numeric'
-    });
-}
-
-function canSubmit() {
-    const contentValid = this.postContent && this.postContent.length >= 10;
-    
-    if (this.postType === 'journal') {
-        const journalSelected = this.selectedJournalId !== null;
-        return contentValid && journalSelected;
-    }
-    
-    return contentValid;
-}
-
-async function submitPost() {
-    if (!this.canSubmit()) return;
-    
-    this.submitting = true;
-    
-    try {
-        const formData = {
-            content: this.postContent,
-            type: this.postType,
-            visibility: this.visibility,
-            request_review: document.getElementById('request_review')?.checked || false
-        };
-        
-        // Add journal_id if it's a journal post
-        if (this.postType === 'journal' && this.selectedJournalId) {
-            formData.journal_id = this.selectedJournalId;
-        }
-        
-        // Add poll options if it's a poll
-        if (this.postType === 'poll' && this.pollOptions) {
-            formData.poll_options = this.pollOptions.filter(opt => opt.trim() !== '');
-        }
-        
-        const response = await fetch('/api/posts', {
-            method: 'POST',
-            headers: {
-                'X-CSRF-TOKEN': '{{ csrf_token() }}',
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(formData)
-        });
-        
-        const data = await response.json();
-        
-        if (data.success) {
-            // Show success message
-            alert('Post created successfully!');
-            
-            // Close modal
-            this.showCreateModal = false;
-            
-            // Reset form
-            this.resetForm();
-            
-            // Reload posts if we're on the network page
-            if (typeof this.loadPosts === 'function') {
-                await this.loadPosts();
-            }
-        } else {
-            alert(data.message || 'Failed to create post');
-        }
-    } catch (error) {
-        console.error('Error creating post:', error);
-        alert('An error occurred. Please try again.');
-    } finally {
-        this.submitting = false;
-    }
-}
-
-function resetForm() {
-    this.postContent = '';
-    this.postType = 'discussion';
-    this.visibility = 'public';
-    this.selectedJournalId = null;
-    if (this.pollOptions) {
-        this.pollOptions = ['', ''];
-    }
-}
-</script>
 
 <style>
 [x-cloak] {

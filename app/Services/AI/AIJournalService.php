@@ -41,9 +41,11 @@ class AIJournalService
         $prompt = $this->createJournalPrompt($sections);
         $systemPrompt = $this->getSystemPrompt();
         
-        Log::info('Starting AI journal generation', [
+        // Debug: Log what we're sending
+        Log::info('AI DEBUG - Sending to provider:', [
             'provider' => $provider,
-            'sections_count' => count($sections),
+            'sections_input' => $sections,
+            'prompt_preview' => substr($prompt, 0, 500),
             'prompt_length' => strlen($prompt)
         ]);
         
@@ -689,8 +691,7 @@ class AIJournalService
     
     private function getSystemPrompt(): string
     {
-        return Cache::remember('ai_system_prompt_journal', 3600, function () {
-            return <<<PROMPT
+        return <<<PROMPT
 You are Querentia's academic journal generation AI. You transform research content into publication-ready journals following EXACT formatting rules.
 
 CRITICAL RULES:
@@ -701,8 +702,8 @@ CRITICAL RULES:
 - Generate tables/figures from provided data
 - Output COMPLETE journal ready for publication
 - Format for academic journal publication
+- ALWAYS generate fresh content based on current input
 PROMPT;
-        });
     }
     
     private function getEnhancementSystemPrompt(string $sectionType): string
@@ -751,12 +752,27 @@ PROMPT;
             'maps_figures' => 'MAPS & FIGURES',
         ];
         
-        $prompt = "Generate a complete academic journal manuscript based on the following research content:\n\n";
+        // Add unique identifier to break caching
+        $uniqueId = uniqid('journal_', true);
+        $prompt = "Generate a complete academic journal manuscript based on the following research content [ID: {$uniqueId}]:\n\n";
         
-        foreach ($sectionNames as $key => $name) {
-            if (!empty($sections[$key])) {
-                $content = is_array($sections[$key]) ? json_encode($sections[$key]) : $sections[$key];
-                $prompt .= "=== {$name} ===\n{$content}\n\n";
+        // Handle both associative array and array of objects
+        if (isset($sections[0]) && is_array($sections[0]) && isset($sections[0]['title'])) {
+            // Format: [{title: '...', content: '...'}, ...]
+            foreach ($sections as $section) {
+                if (isset($section['content']) && !empty($section['content'])) {
+                    $title = $section['title'] ?? 'Section';
+                    $content = $section['content'];
+                    $prompt .= "=== {$title} ===\n{$content}\n\n";
+                }
+            }
+        } else {
+            // Format: ['key' => 'content', ...]
+            foreach ($sectionNames as $key => $name) {
+                if (!empty($sections[$key])) {
+                    $content = is_array($sections[$key]) ? json_encode($sections[$key]) : $sections[$key];
+                    $prompt .= "=== {$name} ===\n{$content}\n\n";
+                }
             }
         }
         
@@ -768,6 +784,7 @@ PROMPT;
         $prompt .= "5. Include proper citations and references\n";
         $prompt .= "6. Maintain 80% of original user wording\n";
         $prompt .= "7. Output should be publication-ready\n";
+        $prompt .= "8. IGNORE any previous cached responses and generate FRESH content based on the input above\n";
         
         return $prompt;
     }

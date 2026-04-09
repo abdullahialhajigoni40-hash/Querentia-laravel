@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Validator;
 use App\Models\Journal;
 use App\Models\AIUsageLog;
 use App\Services\AIJournalService;
@@ -27,105 +28,94 @@ class StreamingController extends Controller
      * Stream journal generation with Server-Sent Events (SSE)
      * Handles the full lifecycle: Connection -> Streaming -> Saving -> Logging
      */
-    public function streamJournal(Request $request, $journalId = null): StreamedResponse
+    public function streamJournal(Request $request, $journalId = null)
     {
-        // 1. Validation
-        $request->validate([
-            'sections' => 'required|array',
-            'provider' => 'nullable|string|in:deepseek,openai,gemini,anthropic',
-        ]);
-
-        $user = Auth::user();
-        $sections = $request->input('sections', []);
-        $provider = $request->input('provider', config('ai.default_provider', 'deepseek'));
-        
-        // 2. Find or Initialize Journal
-        if ($journalId) {
-            $journal = Journal::where('id', $journalId)
-                ->where('user_id', $user->id)
-                ->firstOrFail();
-        } else {
-            $journal = new Journal();
-            $journal->user_id = $user->id;
+        // Allow long-running streaming requests to run without PHP timeout
+        if (function_exists('set_time_limit')) {
+            @set_time_limit(0);
         }
 
-        return new StreamedResponse(function() use ($sections, $provider, $journal, $user) {
+        // For GET requests (EventSource), get data from query parameters
+        // For POST requests, get data from request body
+        if ($request->isMethod('GET')) {
+            $sections = json_decode($request->query('sections', '[]'), true);
+            $provider = $request->query('provider', config('ai.default_provider', 'deepseek'));
+        } else {
+            // 1. Validation (avoid redirects for fetch/SSE calls)
+            $validator = Validator::make($request->all(), [
+                'sections' => 'required|array',
+                'provider' => 'nullable|string|in:deepseek,openai,gemini,anthropic',
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Invalid request payload for AI streaming.',
+                    'errors' => $validator->errors(),
+                ], 422);
+            }
+
+            $sections = $request->input('sections', []);
+            $provider = $request->input('provider', config('ai.default_provider', 'deepseek'));
+        }
+
+        // Validate sections data
+        if (!is_array($sections) || empty($sections)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Sections data is required and must be an array.',
+            ], 422);
+        }
+
+        // Log incoming request for debugging
+        Log::info('AI stream request received', [
+            'method' => $request->method(),
+            'provider' => $provider,
+            'sections_count' => count($sections),
+            'journal_id' => $journalId,
+            'has_auth' => Auth::check(),
+        ]);
+
+        return new StreamedResponse(function() use ($sections, $provider, $journalId) {
             // Setup SSE Headers helper
             $sendEvent = function($event, $data) {
                 echo "event: {$event}\n";
                 echo "data: " . json_encode($data) . "\n\n";
-                ob_flush(); // Add this
-                flush();    // Add this
-                if (ob_get_level() > 0) ob_flush();
+                ob_flush();
                 flush();
             };
-
-            $fullGeneratedContent = '';
 
             try {
                 // Phase 1: Signal Start
                 $sendEvent('start', [
                     'status' => 'connected',
                     'message' => 'Initializing AI researcher...',
-                    'journal_id' => $journal->id
+                    'journal_id' => $journalId
                 ]);
 
-                // Phase 2: Stream from AI Service
-                $this->aiService->generateJournalFromSections(
-                    $sections, 
-                    function($chunk) use (&$fullGeneratedContent, $sendEvent) {
-                        $fullGeneratedContent .= $chunk;
-                        $sendEvent('chunk', ['content' => $chunk]);
-                    },
-                    $provider
-                );
-
-                // Phase 3: Post-Processing & Database Storage
-                $tokenCount = $this->estimateTokens($fullGeneratedContent);
-                $abstract = $this->extractAbstract($fullGeneratedContent);
-
-                $journal->fill([
-                    'title' => $sections['title'] ?? 'Untitled Research',
-                    'abstract' => $abstract,
-                    'ai_generated_content' => $fullGeneratedContent,
-                    'ai_provider_used' => $provider,
-                    'status' => 'draft',
-                    'completed_at' => now(),
-                    'raw_content' => $sections, // Store original inputs
-                ]);
+                // Phase 2: Generate content using actual AI service with streaming
+                $fullGeneratedContent = '';
                 
-                $journal->save();
+                // Use AI service with streaming callback
+                $this->aiService->generateJournalFromSections($sections, function($chunk) use ($sendEvent, &$fullGeneratedContent) {
+                    $fullGeneratedContent .= $chunk;
+                    $sendEvent('chunk', ['content' => $chunk]);
+                    usleep(100000); // 100ms delay for streaming effect
+                }, $provider);
 
-                // Phase 4: Usage Logging & Analytics
-                $cost = $this->calculateCost($tokenCount, $provider);
-                
-                AIUsageLog::create([
-                    'user_id' => $user->id,
-                    'journal_id' => $journal->id,
-                    'provider' => $provider,
-                    'tokens_used' => $tokenCount,
-                    'content_type' => 'full_journal',
-                    'cost' => $cost,
-                    'metadata' => json_encode([
-                        'section_count' => count($sections),
-                        'char_count' => strlen($fullGeneratedContent)
-                    ])
-                ]);
-
-                // Phase 5: Signal Completion
+                // Phase 3: Signal Completion
                 $sendEvent('complete', [
-                    'journal_id' => $journal->id,
+                    'journal_id' => $journalId,
                     'status' => 'success',
-                    'message' => 'Journal successfully synthesized and saved.'
+                    'message' => 'Journal successfully generated.'
                 ]);
 
             } catch (Exception $e) {
-                Log::error('StreamingController Error: ' . $e->getMessage(), [
-                    'user_id' => $user->id,
+                Log::error('AI streaming error', [
+                    'message' => $e->getMessage(),
                     'trace' => $e->getTraceAsString()
                 ]);
-                
-                $sendEvent('error', [
+                $sendEvent('server-error', [
                     'message' => 'Generation interrupted: ' . $e->getMessage()
                 ]);
             }
@@ -133,7 +123,7 @@ class StreamingController extends Controller
             'Content-Type' => 'text/event-stream',
             'Cache-Control' => 'no-cache',
             'Connection' => 'keep-alive',
-            'X-Accel-Buffering' => 'no', // Critical for Nginx
+            'X-Accel-Buffering' => 'no',
         ]);
     }
 
@@ -144,15 +134,18 @@ class StreamingController extends Controller
     {
         $prompt = "Create a professional academic journal article based on these notes:\n\n";
         
-        foreach ($sections as $title => $content) {
-            if (!empty($content)) {
-                $label = strtoupper(str_replace('_', ' ', $title));
-                $prompt .= "--- {$label} ---\n{$content}\n\n";
+        foreach ($sections as $section) {
+            if (isset($section['content']) && !empty($section['content'])) {
+                $title = $section['title'] ?? 'Section';
+                $content = $section['content'];
+                $prompt .= "--- {$title} ---\n{$content}\n\n";
             }
         }
         
-        $prompt .= "Structure the output with the following standard sections:\n";
+        $prompt .= "\nStructure the output with the following standard sections:\n";
         $prompt .= "1. Title\n2. Abstract\n3. Introduction\n4. Methodology\n5. Results\n6. Discussion\n7. Conclusion\n8. References\n\n";
+        $prompt .= "IMPORTANT: Use the provided notes to create meaningful content for each section. ";
+        $prompt .= "Do not make up information that wasn't provided. ";
         $prompt .= "Maintain a scholarly tone and ensure all internal citations are consistent.";
         
         return $prompt;

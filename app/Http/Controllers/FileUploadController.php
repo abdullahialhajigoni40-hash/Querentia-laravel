@@ -6,6 +6,9 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use App\Services\FileUploadService;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Storage;
+use App\Models\Journal;
+use App\Models\JournalImage;
 
 class FileUploadController extends Controller
 {
@@ -77,8 +80,8 @@ class FileUploadController extends Controller
         }
 
         // Check if user owns the journal
-        $journal = \App\Models\Journal::find($request->journal_id);
-        if ($journal->user_id !== Auth::id()) {
+        $journal = Journal::find($request->journal_id);
+        if (!$journal || $journal->user_id !== Auth::id()) {
             return response()->json([
                 'success' => false,
                 'message' => 'Unauthorized'
@@ -112,8 +115,10 @@ class FileUploadController extends Controller
     public function uploadFigure(Request $request)
     {
         $validator = Validator::make($request->all(), [
-            'file' => 'required|image|mimes:jpg,jpeg,png,gif,svg,webp|max:5120', // 5MB
-            'journal_id' => 'required|exists:journals,id',
+            'file' => 'required|file|mimes:jpg,jpeg,png,pdf|max:10240', // 10MB
+            'journal_id' => 'required|integer|exists:journals,id',
+            'caption' => 'nullable|string|max:500',
+            'source' => 'nullable|string|max:500',
         ]);
 
         if ($validator->fails()) {
@@ -124,8 +129,8 @@ class FileUploadController extends Controller
         }
 
         // Check if user owns the journal
-        $journal = \App\Models\Journal::find($request->journal_id);
-        if ($journal->user_id !== Auth::id()) {
+        $journal = Journal::find($request->journal_id);
+        if (!$journal || $journal->user_id !== Auth::id()) {
             return response()->json([
                 'success' => false,
                 'message' => 'Unauthorized'
@@ -133,16 +138,43 @@ class FileUploadController extends Controller
         }
 
         try {
-            $fileInfo = $this->uploadService->uploadFigure(
-                $request->file('file'),
-                $request->journal_id,
-                Auth::id()
-            );
+            // Use the public disk so preview/review can render images.
+            $file = $request->file('file');
+            $path = $file->store('journal-figures/' . $journal->id, 'public');
+            $url = asset('storage/' . ltrim($path, '/'));
+
+            $maxOrder = (int) JournalImage::where('journal_id', $journal->id)
+                ->where('kind', 'figure')
+                ->max('sort_order');
+
+            $img = JournalImage::create([
+                'user_id' => Auth::id(),
+                'journal_id' => $journal->id,
+                'kind' => 'figure',
+                'sort_order' => $maxOrder + 1,
+                'disk' => 'public',
+                'path' => $path,
+                'url' => $url,
+                'original_name' => $file->getClientOriginalName(),
+                'caption' => $request->input('caption'),
+                'source' => $request->input('source'),
+                'mime_type' => $file->getClientMimeType(),
+                'size' => $file->getSize(),
+            ]);
 
             return response()->json([
                 'success' => true,
                 'message' => 'Figure uploaded successfully',
-                'file' => $fileInfo
+                'figure' => [
+                    'id' => $img->id,
+                    'url' => $img->url,
+                    'original_name' => $img->original_name,
+                    'caption' => $img->caption,
+                    'source' => $img->source,
+                    'sort_order' => $img->sort_order,
+                    'mime_type' => $img->mime_type,
+                    'size' => $img->size,
+                ],
             ]);
 
         } catch (\Exception $e) {
@@ -151,6 +183,147 @@ class FileUploadController extends Controller
                 'message' => $e->getMessage()
             ], 500);
         }
+    }
+
+    public function listJournalFigures(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'journal_id' => 'required|integer|exists:journals,id',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        $journal = Journal::find($request->journal_id);
+        if (!$journal || $journal->user_id !== Auth::id()) {
+            return response()->json(['success' => false, 'message' => 'Unauthorized'], 403);
+        }
+
+        $figures = JournalImage::where('journal_id', $journal->id)
+            ->where('kind', 'figure')
+            ->orderBy('sort_order')
+            ->orderBy('id')
+            ->get()
+            ->map(function (JournalImage $img) {
+                return [
+                    'id' => $img->id,
+                    'url' => $img->url,
+                    'original_name' => $img->original_name,
+                    'caption' => $img->caption,
+                    'source' => $img->source,
+                    'sort_order' => (int) $img->sort_order,
+                    'mime_type' => $img->mime_type,
+                    'size' => $img->size,
+                ];
+            })
+            ->values();
+
+        return response()->json([
+            'success' => true,
+            'figures' => $figures,
+        ]);
+    }
+
+    public function updateJournalFigure(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'id' => 'required|integer|exists:journal_images,id',
+            'caption' => 'nullable|string|max:500',
+            'source' => 'nullable|string|max:500',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        $img = JournalImage::find($request->id);
+        if (!$img || $img->user_id !== Auth::id()) {
+            return response()->json(['success' => false, 'message' => 'Unauthorized'], 403);
+        }
+
+        $img->update([
+            'caption' => $request->input('caption'),
+            'source' => $request->input('source'),
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'figure' => [
+                'id' => $img->id,
+                'caption' => $img->caption,
+                'source' => $img->source,
+            ],
+        ]);
+    }
+
+    public function reorderJournalFigures(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'journal_id' => 'required|integer|exists:journals,id',
+            'ordered_ids' => 'required|array|min:1',
+            'ordered_ids.*' => 'integer|exists:journal_images,id',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        $journal = Journal::find($request->journal_id);
+        if (!$journal || $journal->user_id !== Auth::id()) {
+            return response()->json(['success' => false, 'message' => 'Unauthorized'], 403);
+        }
+
+        $ids = array_values($request->ordered_ids);
+        $images = JournalImage::where('journal_id', $journal->id)
+            ->where('kind', 'figure')
+            ->whereIn('id', $ids)
+            ->get()
+            ->keyBy('id');
+
+        foreach ($ids as $i => $id) {
+            if (isset($images[$id])) {
+                $images[$id]->update(['sort_order' => $i + 1]);
+            }
+        }
+
+        return response()->json(['success' => true]);
+    }
+
+    public function deleteJournalFigure(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'id' => 'required|integer|exists:journal_images,id',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        $img = JournalImage::find($request->id);
+        if (!$img || $img->user_id !== Auth::id()) {
+            return response()->json(['success' => false, 'message' => 'Unauthorized'], 403);
+        }
+
+        if ($img->disk && $img->path && Storage::disk($img->disk)->exists($img->path)) {
+            Storage::disk($img->disk)->delete($img->path);
+        }
+
+        $img->delete();
+
+        return response()->json(['success' => true]);
     }
 
     /**

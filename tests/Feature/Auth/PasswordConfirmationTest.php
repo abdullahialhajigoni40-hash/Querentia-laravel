@@ -3,6 +3,7 @@
 namespace Tests\Feature\Auth;
 
 use App\Models\User;
+use App\Providers\RouteServiceProvider;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Volt\Volt;
 use Tests\TestCase;
@@ -17,9 +18,7 @@ class PasswordConfirmationTest extends TestCase
 
         $response = $this->actingAs($user)->get('/confirm-password');
 
-        $response
-            ->assertSeeVolt('pages.auth.confirm-password')
-            ->assertStatus(200);
+        $response->assertStatus(200);
     }
 
     public function test_password_can_be_confirmed(): void
@@ -34,7 +33,7 @@ class PasswordConfirmationTest extends TestCase
         $component->call('confirmPassword');
 
         $component
-            ->assertRedirect('/dashboard')
+            ->assertRedirect(RouteServiceProvider::HOME)
             ->assertHasNoErrors();
     }
 

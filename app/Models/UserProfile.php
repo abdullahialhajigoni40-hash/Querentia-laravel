@@ -15,6 +15,7 @@ class UserProfile extends Model
         'bio',
         'website',
         'linkedin',
+        'orcid',
         'twitter',
         'google_scholar',
         'researchgate',

@@ -1,371 +1,354 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Edit Profile - Querentia</title>
-    @vite(['resources/css/app.css', 'resources/js/app.js'])
-    <style>
-        .form-card {
-            background: white;
-            border-radius: 12px;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
-        }
-        .tab-active {
-            border-bottom: 3px solid #8b5cf6;
-            color: #8b5cf6;
-        }
-        .skill-tag {
-            display: inline-flex;
-            align-items: center;
-            background: #e9d5ff;
-            color: #7c3aed;
-            padding: 4px 12px;
-            border-radius: 20px;
-            margin: 4px;
-        }
-        .skill-tag-remove {
-            margin-left: 8px;
-            cursor: pointer;
-            font-weight: bold;
-        }
-    </style>
-</head>
-<body class="bg-gray-50 font-sans antialiased">
-    <div class="container mx-auto px-4 py-8 max-w-4xl">
-        <h1 class="text-3xl font-bold text-gray-900 mb-2">Edit Profile</h1>
-        <p class="text-gray-600 mb-8">Update your academic profile information</p>
+@extends('layouts.network')
 
-        <!-- Success Message -->
-        @if(session('success'))
-        <div class="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded-lg mb-6">
-            {{ session('success') }}
+@section('title', 'Edit Profile - Querentia')
+
+@section('content')
+<div class="max-w-7xl mx-auto">
+    <!-- Header -->
+    <div class="flex justify-between items-center mb-8">
+        <div>
+            <h1 class="text-3xl font-bold text-gray-900">Edit Profile</h1>
+            <p class="text-gray-600 mt-2">Update your profile information and preferences</p>
         </div>
-        @endif
+        <a href="{{ route('profile.show') }}" class="text-gray-600 hover:text-gray-800">
+            <i class="fas fa-arrow-left mr-2"></i>Back to Profile
+        </a>
+    </div>
 
-        <!-- Tabs -->
-        <div class="flex border-b mb-6">
-            <button id="basic-tab" class="tab-active px-6 py-3 font-medium text-lg">Basic Info</button>
-            <button id="education-tab" class="px-6 py-3 font-medium text-lg text-gray-600">Education</button>
-            <button id="experience-tab" class="px-6 py-3 font-medium text-lg text-gray-600">Experience</button>
-            <button id="skills-tab" class="px-6 py-3 font-medium text-lg text-gray-600">Skills</button>
-        </div>
+    <form method="POST" action="{{ route('profile.update') }}" enctype="multipart/form-data">
+        @csrf
+        @method('PUT')
+        
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <!-- Left Column - Main Info -->
+            <div class="lg:col-span-2 space-y-6">
+                <!-- Basic Information -->
+                <div class="bg-white rounded-xl shadow p-6">
+                    <h2 class="text-xl font-bold text-gray-900 mb-6">
+                        <i class="fas fa-user mr-2 text-purple-500"></i>Basic Information
+                    </h2>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">First Name</label>
+                            <input type="text" name="first_name" value="{{ $user->first_name }}" required
+                                   class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Last Name</label>
+                            <input type="text" name="last_name" value="{{ $user->last_name }}" required
+                                   class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
+                        </div>
+                    </div>
 
-        <form action="{{ route('profile.update') }}" method="POST" enctype="multipart/form-data" id="profile-form">
-            @csrf
-            @method('PUT')
+                    <div class="mt-6">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Professional Title</label>
+                        <input type="text" name="title" value="{{ $profile->title ?? '' }}" 
+                               placeholder="e.g., Professor, Research Scientist, PhD Student"
+                               class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
+                    </div>
 
-            <!-- Basic Info Tab -->
-            <div id="basic-content" class="form-card p-6">
-                <h2 class="text-xl font-bold text-gray-900 mb-6">Basic Information</h2>
-                
+                    <div class="mt-6">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Institution</label>
+                        <input type="text" name="institution" value="{{ $user->institution ?? '' }}" required
+                               placeholder="e.g., Stanford University, MIT, Harvard Medical School"
+                               class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
+                    </div>
+
+                    <div class="mt-6">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Department</label>
+                        <input type="text" name="department" value="{{ $user->department ?? '' }}" 
+                               placeholder="e.g., Computer Science, Biology, Physics"
+                               class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
+                    </div>
+
+                    <div class="mt-6">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Position</label>
+                        <select name="position" required
+                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
+                            <option value="" {{ !$user->position ? 'selected' : '' }}>Select Position</option>
+                            <option value="student" {{ $user->position === 'student' ? 'selected' : '' }}>Student</option>
+                            <option value="researcher" {{ $user->position === 'researcher' ? 'selected' : '' }}>Researcher</option>
+                            <option value="lecturer" {{ $user->position === 'lecturer' ? 'selected' : '' }}>Lecturer</option>
+                            <option value="professor" {{ $user->position === 'professor' ? 'selected' : '' }}>Professor</option>
+                            <option value="phd" {{ $user->position === 'phd' ? 'selected' : '' }}>PhD Candidate</option>
+                            <option value="other" {{ $user->position === 'other' ? 'selected' : '' }}>Other</option>
+                        </select>
+                    </div>
+
+                    <div class="mt-6">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Email</label>
+                        <input type="email" name="email" value="{{ $user->email }}" required
+                               class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
+                    </div>
+                </div>
+
+                <!-- Profile Details -->
+                <div class="bg-white rounded-xl shadow p-6">
+                    <h2 class="text-xl font-bold text-gray-900 mb-6">
+                        <i class="fas fa-info-circle mr-2 text-purple-500"></i>Profile Details
+                    </h2>
+
+                    <div class="mt-6">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Bio</label>
+                        <textarea name="bio" rows="4" 
+                                  placeholder="Tell us about yourself, your research interests, and academic background..."
+                                  class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">{{ $profile->bio ?? '' }}</textarea>
+                    </div>
+
+                    <div class="mt-6">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Research Interests</label>
+                        <input type="text" name="research_interests" 
+                               value="{{ $user->research_interests ? implode(', ', $user->research_interests) : '' }}" 
+                               placeholder="e.g., Machine Learning, Neuroscience, Climate Change"
+                               class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
+                        <p class="text-xs text-gray-500 mt-1">Separate interests with commas</p>
+                    </div>
+                </div>
+
+                <!-- Education -->
+                <div class="bg-white rounded-xl shadow p-6">
+                    <h2 class="text-xl font-bold text-gray-900 mb-6">
+                        <i class="fas fa-graduation-cap mr-2 text-purple-500"></i>Education
+                    </h2>
+                    
+                    <div id="education-container">
+                        @if($profile && $profile->education)
+                            @foreach($profile->education as $index => $edu)
+                            <div class="education-entry border rounded-lg p-4 mb-4">
+                                <div class="flex justify-between items-start mb-4">
+                                    <h3 class="font-semibold text-gray-800">Education {{ $index + 1 }}</h3>
+                                    @if($index > 0)
+                                    <button type="button" onclick="removeEducation(this)" class="text-red-500 hover:text-red-700">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                    @endif
+                                </div>
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <input type="text" name="education[{{ $index }}][degree]" value="{{ $edu['degree'] ?? '' }}" 
+                                           placeholder="Degree" class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
+                                    <input type="text" name="education[{{ $index }}][institution]" value="{{ $edu['institution'] ?? '' }}" 
+                                           placeholder="Institution" class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
+                                    <input type="text" name="education[{{ $index }}][year]" value="{{ $edu['year'] ?? '' }}" 
+                                           placeholder="Year" class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
+                                </div>
+                            </div>
+                            @endforeach
+                        @else
+                        <div class="education-entry border rounded-lg p-4 mb-4">
+                            <div class="flex justify-between items-start mb-4">
+                                <h3 class="font-semibold text-gray-800">Education 1</h3>
+                            </div>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <input type="text" name="education[0][degree]" placeholder="Degree" 
+                                       class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
+                                <input type="text" name="education[0][institution]" placeholder="Institution" 
+                                       class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
+                                <input type="text" name="education[0][year]" placeholder="Year" 
+                                       class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
+                            </div>
+                        </div>
+                        @endif
+                    </div>
+                    
+                    <button type="button" onclick="addEducation()" class="mt-4 bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition">
+                        <i class="fas fa-plus mr-2"></i>Add Education
+                    </button>
+                </div>
+
+                <!-- Skills -->
+                <div class="bg-white rounded-xl shadow p-6">
+                    <h2 class="text-xl font-bold text-gray-900 mb-6">
+                        <i class="fas fa-tools mr-2 text-purple-500"></i>Skills & Expertise
+                    </h2>
+                    
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Add Skill</label>
+                        <div class="flex gap-2">
+                            <input type="text" id="skill-input" placeholder="e.g., Python, Data Analysis, Statistical Modeling"
+                                   class="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
+                            <button type="button" onclick="addSkill()" class="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition">
+                                Add
+                            </button>
+                        </div>
+                    </div>
+
+                    <div id="skills-container" class="flex flex-wrap gap-2">
+                        @if($profile && $profile->skills)
+                            @foreach($profile->skills as $skill)
+                            <span class="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm flex items-center gap-2">
+                                {{ $skill }}
+                                <button type="button" onclick="removeSkill(this)" class="text-blue-600 hover:text-blue-800">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                                <input type="hidden" name="skills[]" value="{{ $skill }}">
+                            </span>
+                            @endforeach
+                        @endif
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Column - Profile Picture -->
+            <div class="space-y-6">
                 <!-- Profile Picture -->
-                <div class="mb-6">
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Profile Picture</label>
-                    <div class="flex items-center space-x-6">
-                        <div class="w-24 h-24 rounded-full overflow-hidden bg-gray-200">
+                <div class="bg-white rounded-xl shadow p-6">
+                    <h2 class="text-xl font-bold text-gray-900 mb-6">
+                        <i class="fas fa-camera mr-2 text-purple-500"></i>Profile Picture
+                    </h2>
+                    
+                    <div class="text-center">
+                        <div class="mb-4">
                             @if($user->profile_picture)
                                 <img src="{{ asset('storage/' . $user->profile_picture) }}" 
-                                     alt="Current profile"
-                                     class="w-full h-full object-cover">
+                                     alt="Current profile picture" 
+                                     class="w-32 h-32 rounded-full object-cover mx-auto border-4 border-gray-200">
                             @else
-                                <div class="w-full h-full flex items-center justify-center text-gray-500">
-                                    <i class="fas fa-user text-3xl"></i>
+                                <div class="w-32 h-32 rounded-full bg-gradient-to-br from-purple-500 to-blue-600 flex items-center justify-center text-white text-4xl font-bold mx-auto">
+                                    {{ strtoupper(substr($user->first_name, 0, 1) . substr($user->last_name, 0, 1)) }}
                                 </div>
                             @endif
                         </div>
+                        
                         <div>
-                            <input type="file" name="profile_picture" 
-                                   accept="image/*" 
-                                   class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-purple-50 file:text-purple-700 hover:file:bg-purple-100">
-                            <p class="text-xs text-gray-500 mt-2">JPG, PNG or GIF (Max 2MB)</p>
+                            <label class="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition cursor-pointer inline-block">
+                                <i class="fas fa-upload mr-2"></i>Upload New Picture
+                                <input type="file" name="profile_picture" accept="image/*" class="hidden" onchange="previewProfilePicture(this)">
+                            </label>
                         </div>
+                        
+                        <p class="text-xs text-gray-500 mt-2">JPG, PNG or GIF. Max size 2MB.</p>
                     </div>
-                </div>
-
-                <!-- Name -->
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                    <div>
-                        <label for="first_name" class="block text-sm font-medium text-gray-700 mb-2">First Name *</label>
-                        <input type="text" id="first_name" name="first_name" 
-                               value="{{ old('first_name', $user->first_name) }}"
-                               required
-                               class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition">
-                    </div>
-                    <div>
-                        <label for="last_name" class="block text-sm font-medium text-gray-700 mb-2">Last Name *</label>
-                        <input type="text" id="last_name" name="last_name" 
-                               value="{{ old('last_name', $user->last_name) }}"
-                               required
-                               class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition">
-                    </div>
-                </div>
-
-                <!-- Title & Position -->
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                    <div>
-                        <label for="title" class="block text-sm font-medium text-gray-700 mb-2">Title</label>
-                        <input type="text" id="title" name="title" 
-                               value="{{ old('title', $profile->title ?? '') }}"
-                               placeholder="e.g., Professor of Computer Science"
-                               class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition">
-                    </div>
-                    <div>
-                        <label for="position" class="block text-sm font-medium text-gray-700 mb-2">Position *</label>
-                        <select id="position" name="position" required
-                                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition">
-                            <option value="student" {{ old('position', $user->position) == 'student' ? 'selected' : '' }}>Student</option>
-                            <option value="researcher" {{ old('position', $user->position) == 'researcher' ? 'selected' : '' }}>Researcher</option>
-                            <option value="lecturer" {{ old('position', $user->position) == 'lecturer' ? 'selected' : '' }}>Lecturer</option>
-                            <option value="professor" {{ old('position', $user->position) == 'professor' ? 'selected' : '' }}>Professor</option>
-                            <option value="phd" {{ old('position', $user->position) == 'phd' ? 'selected' : '' }}>PhD Candidate</option>
-                            <option value="other" {{ old('position', $user->position) == 'other' ? 'selected' : '' }}>Other</option>
-                        </select>
-                    </div>
-                </div>
-
-                <!-- Institution -->
-                <div class="mb-6">
-                    <label for="institution" class="block text-sm font-medium text-gray-700 mb-2">Institution *</label>
-                    <input type="text" id="institution" name="institution" 
-                           value="{{ old('institution', $user->institution) }}"
-                           required
-                           placeholder="University or Research Center"
-                           class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition">
-                </div>
-
-                <!-- Department & Research Interests -->
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                    <div>
-                        <label for="department" class="block text-sm font-medium text-gray-700 mb-2">Department</label>
-                        <input type="text" id="department" name="department" 
-                               value="{{ old('department', $user->department) }}"
-                               placeholder="e.g., Computer Science Department"
-                               class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition">
-                    </div>
-                    <div>
-                        <label for="research_interests" class="block text-sm font-medium text-gray-700 mb-2">Research Interests</label>
-                        <input type="text" id="research_interests" name="research_interests" 
-                               value="{{ old('research_interests', is_array($user->research_interests) ? implode(', ', $user->research_interests) : $user->research_interests) }}"
-                               placeholder="e.g., Machine Learning, Public Health, Climate Change"
-                               class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition">
-                        <p class="text-xs text-gray-500 mt-2">Separate with commas</p>
-                    </div>
-                </div>
-
-                <!-- Bio -->
-                <div class="mb-6">
-                    <label for="bio" class="block text-sm font-medium text-gray-700 mb-2">Bio</label>
-                    <textarea id="bio" name="bio" rows="4"
-                              placeholder="Tell us about your research, achievements, and interests..."
-                              class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition">{{ old('bio', $profile->bio ?? '') }}</textarea>
                 </div>
 
                 <!-- Social Links -->
-                <h3 class="text-lg font-semibold text-gray-900 mb-4">Social Links</h3>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                    <div>
-                        <label for="website" class="block text-sm font-medium text-gray-700 mb-2">Website</label>
-                        <input type="url" id="website" name="website" 
-                               value="{{ old('website', $profile->website ?? '') }}"
-                               placeholder="https://yourwebsite.com"
-                               class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition">
-                    </div>
-                    <div>
-                        <label for="linkedin" class="block text-sm font-medium text-gray-700 mb-2">LinkedIn</label>
-                        <input type="text" id="linkedin" name="linkedin" 
-                               value="{{ old('linkedin', $profile->linkedin ?? '') }}"
-                               placeholder="https://linkedin.com/in/username"
-                               class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition">
-                    </div>
-                    <div>
-                        <label for="google_scholar" class="block text-sm font-medium text-gray-700 mb-2">Google Scholar</label>
-                        <input type="text" id="google_scholar" name="google_scholar" 
-                               value="{{ old('google_scholar', $profile->google_scholar ?? '') }}"
-                               placeholder="https://scholar.google.com/citations?user=ID"
-                               class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition">
-                    </div>
-                    <div>
-                        <label for="researchgate" class="block text-sm font-medium text-gray-700 mb-2">ResearchGate</label>
-                        <input type="text" id="researchgate" name="researchgate" 
-                               value="{{ old('researchgate', $profile->researchgate ?? '') }}"
-                               placeholder="https://researchgate.net/profile/username"
-                               class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition">
-                    </div>
-                </div>
-            </div>
-
-            <!-- Education Tab (Hidden by default) -->
-            <div id="education-content" class="form-card p-6 hidden">
-                <h2 class="text-xl font-bold text-gray-900 mb-6">Education</h2>
-                <div id="education-container">
-                    <!-- Education entries will be added here dynamically -->
-                </div>
-                <button type="button" onclick="addEducation()" 
-                        class="mt-4 bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2 rounded-lg">
-                    <i class="fas fa-plus mr-2"></i>Add Education
-                </button>
-            </div>
-
-            <!-- Skills Tab (Hidden by default) -->
-            <div id="skills-content" class="form-card p-6 hidden">
-                <h2 class="text-xl font-bold text-gray-900 mb-6">Skills & Expertise</h2>
-                <div class="mb-4">
-                    <input type="text" id="skill-input" 
-                           placeholder="Add a skill and press Enter"
-                           class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition">
-                    <input type="hidden" id="skills" name="skills" value="{{ old('skills', json_encode($profile->skills ?? [])) }}">
-                </div>
-                <div id="skills-container" class="flex flex-wrap mb-6">
-                    <!-- Skills will be added here -->
-                </div>
-            </div>
-
-            <!-- Form Actions -->
-            <div class="flex justify-end space-x-4 mt-8">
-                <a href="{{ route('profile.show') }}" 
-                   class="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition">
-                    Cancel
-                </a>
-                <button type="submit" 
-                        class="px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition font-semibold">
-                    Save Changes
-                </button>
-            </div>
-        </form>
-    </div>
-
-    <script>
-        // Tab switching
-        document.querySelectorAll('button[id$="-tab"]').forEach(tab => {
-            tab.addEventListener('click', function() {
-                // Update tabs
-                document.querySelectorAll('button[id$="-tab"]').forEach(t => {
-                    t.classList.remove('tab-active', 'text-purple-600');
-                    t.classList.add('text-gray-600');
-                });
-                this.classList.add('tab-active', 'text-purple-600');
-                this.classList.remove('text-gray-600');
-
-                // Update content
-                const tabId = this.id.replace('-tab', '-content');
-                document.querySelectorAll('div[id$="-content"]').forEach(content => {
-                    content.classList.add('hidden');
-                });
-                document.getElementById(tabId).classList.remove('hidden');
-            });
-        });
-
-        // Education management
-        function addEducation(education = {}) {
-            const container = document.getElementById('education-container');
-            const index = container.children.length;
-            
-            const html = `
-                <div class="education-entry border rounded-lg p-4 mb-4">
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                <div class="bg-white rounded-xl shadow p-6">
+                    <h2 class="text-xl font-bold text-gray-900 mb-6">
+                        <i class="fas fa-link mr-2 text-purple-500"></i>Social Links
+                    </h2>
+                    
+                    <div class="space-y-4">
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Institution</label>
-                            <input type="text" name="education[${index}][institution]" 
-                                   value="${education.institution || ''}"
-                                   class="w-full px-3 py-2 border rounded">
+                            <label class="block text-sm font-medium text-gray-700 mb-2">LinkedIn</label>
+                            <input type="url" name="linkedin" value="{{ $profile->linkedin ?? '' }}" 
+                                   placeholder="https://linkedin.com/in/yourprofile"
+                                   class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
                         </div>
+
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Degree</label>
-                            <input type="text" name="education[${index}][degree]" 
-                                   value="${education.degree || ''}"
-                                   class="w-full px-3 py-2 border rounded">
+                            <label class="block text-sm font-medium text-gray-700 mb-2">ORCID</label>
+                            <input type="text" name="orcid" value="{{ $profile->orcid ?? '' }}" 
+                                   placeholder="0000-0002-1825-0097 or https://orcid.org/0000-0002-1825-0097"
+                                   class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
                         </div>
+                        
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Field of Study</label>
-                            <input type="text" name="education[${index}][field]" 
-                                   value="${education.field || ''}"
-                                   class="w-full px-3 py-2 border rounded">
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Twitter</label>
+                            <input type="url" name="twitter" value="{{ $profile->twitter ?? '' }}" 
+                                   placeholder="https://twitter.com/yourhandle"
+                                   class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
                         </div>
+                        
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Year</label>
-                            <input type="text" name="education[${index}][year]" 
-                                   value="${education.year || ''}"
-                                   class="w-full px-3 py-2 border rounded">
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Website</label>
+                            <input type="url" name="website" value="{{ $profile->website ?? '' }}" 
+                                   placeholder="https://yourwebsite.com"
+                                   class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
                         </div>
                     </div>
-                    <button type="button" onclick="removeEducation(this)" 
-                            class="text-red-600 hover:text-red-800 text-sm">
-                        <i class="fas fa-trash mr-1"></i>Remove
+                </div>
+
+                <!-- Save Button -->
+                <div class="bg-white rounded-xl shadow p-6">
+                    <button type="submit" class="w-full bg-purple-600 text-white px-6 py-3 rounded-lg hover:bg-purple-700 transition font-semibold">
+                        <i class="fas fa-save mr-2"></i>Save Changes
                     </button>
                 </div>
+            </div>
+        </div>
+    </form>
+</div>
+
+<script>
+    let educationCount = {{ $profile && $profile->education ? count($profile->education) : 1 }};
+
+    function addEducation() {
+        const container = document.getElementById('education-container');
+        const entry = document.createElement('div');
+        entry.className = 'education-entry border rounded-lg p-4 mb-4';
+        entry.innerHTML = `
+            <div class="flex justify-between items-start mb-4">
+                <h3 class="font-semibold text-gray-800">Education ${educationCount + 1}</h3>
+                <button type="button" onclick="removeEducation(this)" class="text-red-500 hover:text-red-700">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <input type="text" name="education[${educationCount}][degree]" placeholder="Degree" 
+                       class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
+                <input type="text" name="education[${educationCount}][institution]" placeholder="Institution" 
+                       class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
+                <input type="text" name="education[${educationCount}][year]" placeholder="Year" 
+                       class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
+            </div>
+        `;
+        container.appendChild(entry);
+        educationCount++;
+    }
+
+    function removeEducation(button) {
+        button.closest('.education-entry').remove();
+    }
+
+    function addSkill() {
+        const input = document.getElementById('skill-input');
+        const skill = input.value.trim();
+        
+        if (skill) {
+            const container = document.getElementById('skills-container');
+            const skillElement = document.createElement('span');
+            skillElement.className = 'bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm flex items-center gap-2';
+            skillElement.innerHTML = `
+                ${skill}
+                <button type="button" onclick="removeSkill(this)" class="text-blue-600 hover:text-blue-800">
+                    <i class="fas fa-times"></i>
+                </button>
+                <input type="hidden" name="skills[]" value="${skill}">
             `;
-            
-            container.insertAdjacentHTML('beforeend', html);
+            container.appendChild(skillElement);
+            input.value = '';
         }
+    }
 
-        function removeEducation(button) {
-            button.closest('.education-entry').remove();
-            // Renumber remaining entries
-            const container = document.getElementById('education-container');
-            container.querySelectorAll('.education-entry').forEach((entry, index) => {
-                entry.querySelectorAll('input').forEach(input => {
-                    input.name = input.name.replace(/education\[\d+\]/, `education[${index}]`);
-                });
-            });
+    function removeSkill(button) {
+        button.closest('span').remove();
+    }
+
+    function previewProfilePicture(input) {
+        if (input.files && input.files[0]) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const img = input.closest('.text-center').querySelector('img, div');
+                if (img.tagName === 'IMG') {
+                    img.src = e.target.result;
+                } else {
+                    const newImg = document.createElement('img');
+                    newImg.src = e.target.result;
+                    newImg.alt = 'Profile preview';
+                    newImg.className = 'w-32 h-32 rounded-full object-cover mx-auto border-4 border-gray-200';
+                    img.parentNode.replaceChild(newImg, img);
+                }
+            };
+            reader.readAsDataURL(input.files[0]);
         }
+    }
 
-        // Skills management
-        const skillsInput = document.getElementById('skill-input');
-        const skillsHidden = document.getElementById('skills');
-        const skillsContainer = document.getElementById('skills-container');
-        let skills = JSON.parse(skillsHidden.value || '[]');
-
-        function renderSkills() {
-            skillsContainer.innerHTML = '';
-            skills.forEach((skill, index) => {
-                const tag = document.createElement('div');
-                tag.className = 'skill-tag';
-                tag.innerHTML = `
-                    ${skill}
-                    <span class="skill-tag-remove" onclick="removeSkill(${index})">&times;</span>
-                `;
-                skillsContainer.appendChild(tag);
-            });
-            skillsHidden.value = JSON.stringify(skills);
+    // Handle Enter key in skill input
+    document.getElementById('skill-input').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            addSkill();
         }
-
-        function addSkill(skill) {
-            skill = skill.trim();
-            if (skill && !skills.includes(skill)) {
-                skills.push(skill);
-                renderSkills();
-                skillsInput.value = '';
-            }
-        }
-
-        function removeSkill(index) {
-            skills.splice(index, 1);
-            renderSkills();
-        }
-
-        skillsInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                e.preventDefault();
-                addSkill(skillsInput.value);
-            }
-        });
-
-        // Initialize with existing data
-        document.addEventListener('DOMContentLoaded', function() {
-            // Initialize skills
-            renderSkills();
-
-            // Initialize education from existing data
-            const existingEducation = @json($profile->education ?? []);
-            existingEducation.forEach(edu => addEducation(edu));
-            if (existingEducation.length === 0) {
-                addEducation(); // Add one empty field
-            }
-        });
-    </script>
-
-    <!-- Font Awesome -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-</body>
-</html>
+    });
+</script>
+@endsection

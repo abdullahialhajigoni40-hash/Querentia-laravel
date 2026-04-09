@@ -2,9 +2,10 @@
 
 namespace Tests\Feature\Auth;
 
-use App\Providers\RouteServiceProvider;
+use App\Models\User;
+use App\Http\Middleware\VerifyCsrfToken;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Livewire\Volt\Volt;
+use Illuminate\Support\Facades\Notification;
 use Tests\TestCase;
 
 class RegistrationTest extends TestCase
@@ -16,22 +17,31 @@ class RegistrationTest extends TestCase
         $response = $this->get('/register');
 
         $response
-            ->assertOk()
-            ->assertSeeVolt('pages.auth.register');
+            ->assertOk();
     }
 
     public function test_new_users_can_register(): void
     {
-        $component = Volt::test('pages.auth.register')
-            ->set('name', 'Test User')
-            ->set('email', 'test@example.com')
-            ->set('password', 'password')
-            ->set('password_confirmation', 'password');
+        Notification::fake();
+        $this->withoutMiddleware(VerifyCsrfToken::class);
 
-        $component->call('register');
+        $response = $this->post('/register', [
+            'first_name' => 'Test',
+            'last_name' => 'User',
+            'email' => 'test@example.com',
+            'institution' => 'Test University',
+            'department' => 'Test Department',
+            'position' => 'student',
+            'research_interests' => null,
+            'password' => 'password',
+            'password_confirmation' => 'password',
+            'terms' => '1',
+        ]);
 
-        $component->assertRedirect(RouteServiceProvider::HOME);
-
+        $response->assertRedirect(route('verification.notice'));
         $this->assertAuthenticated();
+        $this->assertDatabaseHas('users', [
+            'email' => 'test@example.com',
+        ]);
     }
 }

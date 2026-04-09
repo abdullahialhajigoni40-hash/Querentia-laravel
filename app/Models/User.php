@@ -2,15 +2,28 @@
 
 namespace App\Models;
 
+use Illuminate\Auth\MustVerifyEmail;
+use Illuminate\Contracts\Auth\MustVerifyEmail as MustVerifyEmailContract;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 use App\Models\Journal;
 
-class User extends Authenticatable
+/**
+ * Class User
+ *
+ * @property int $id
+ * @property string $first_name
+ * @property string $last_name
+ * @property string $email
+ * @property string $full_name
+ * @property string|null $institution
+ */
+class User extends Authenticatable implements MustVerifyEmailContract
 {
     use HasApiTokens, HasFactory, Notifiable;
+    use MustVerifyEmail;
 
     protected $fillable = [
         'first_name',
@@ -71,6 +84,12 @@ class User extends Authenticatable
         return $this->hasMany(Review::class, 'reviewer_id');
     }
 
+    // Peer reviews assigned to user
+    public function peerReviews()
+    {
+        return $this->hasMany(PeerReview::class, 'reviewer_id');
+    }
+
     // Posts made by user
     public function posts()
     {
@@ -112,6 +131,15 @@ class User extends Authenticatable
         return $this->belongsToMany(User::class, 'user_connections', 'user_id', 'connected_user_id')
                     ->wherePivot('status', 'accepted')
                     ->withTimestamps();
+    }
+
+    // Get all connection records (for management)
+    public function allConnections()
+    {
+        return UserConnection::where(function($query) {
+            $query->where('user_id', $this->id)
+                  ->orWhere('connected_user_id', $this->id);
+        });
     }
 
     // Pending connection requests received (others want to connect with this user)
@@ -170,6 +198,74 @@ public function isSubscribed()
 public function isPro()
 {
     return $this->subscription_tier === 'pro' && $this->isSubscribed();
+}
+
+// Blog relationships
+public function blogs()
+{
+    return $this->hasMany(Blog::class);
+}
+
+public function publishedBlogs()
+{
+    return $this->hasMany(Blog::class)->where('status', 'published');
+}
+
+public function blogComments()
+{
+    return $this->hasMany(BlogComment::class);
+}
+
+public function blogLikes()
+{
+    return $this->hasMany(BlogLike::class);
+}
+
+// Group relationships
+public function groups()
+{
+    return $this->hasMany(Group::class, 'creator_id');
+}
+
+public function groupMemberships()
+{
+    return $this->hasMany(GroupMember::class);
+}
+
+public function activeGroupMemberships()
+{
+    return $this->hasMany(GroupMember::class)->where('status', 'active');
+}
+
+public function joinedGroups()
+{
+    return $this->belongsToMany(Group::class, 'group_members')
+        ->where('group_members.status', 'active')
+        ->withPivot('role', 'status', 'joined_at', 'last_read_at');
+}
+
+public function adminGroups()
+{
+    return $this->belongsToMany(Group::class, 'group_members')
+        ->where('group_members.status', 'active')
+        ->where('group_members.role', 'admin')
+        ->withPivot('role', 'status', 'joined_at', 'last_read_at');
+}
+
+public function groupMessages()
+{
+    return $this->hasMany(GroupMessage::class);
+}
+
+public function getUnreadGroupMessagesCount()
+{
+    $count = 0;
+    
+    foreach ($this->activeGroupMemberships as $membership) {
+        $count += $membership->group->getUnreadMessageCount($this->id);
+    }
+    
+    return $count;
 }
     
 }

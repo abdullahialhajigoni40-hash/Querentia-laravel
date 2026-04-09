@@ -5,6 +5,19 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
+/**
+ * Class Comment
+ *
+ * @property int $id
+ * @property int $user_id
+ * @property int $post_id
+ * @property int|null $parent_id
+ * @property string $content
+ * @property bool $is_review
+ * @property bool $is_helpful
+ * @property int $helpful_count
+ * @property int $replies_count
+ */
 class Comment extends Model
 {
     use HasFactory;

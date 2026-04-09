@@ -11,7 +11,10 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        // Bind AI Journal Service
+        $this->app->singleton(\App\Services\AIJournalService::class, function ($app) {
+            return new \App\Services\AIJournalService();
+        });
     }
 
     /**

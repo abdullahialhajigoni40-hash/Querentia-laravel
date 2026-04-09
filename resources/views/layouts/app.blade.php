@@ -170,12 +170,12 @@
                     <p class="text-xs text-gray-500 uppercase font-semibold mb-2 px-3" x-show="!sidebarCollapsed">AI Tools</p>
                 </li>
 
-                <!-- AI Journal Studio -->
+                <!-- AI Journal -->
                 <li>
                     <a href="{{ route('create_journal') }}" 
                        class="nav-item flex items-center space-x-3 p-3 {{ request()->routeIs('create_journal') ? 'active' : '' }}">
                         <i class="fas fa-robot text-purple-500 w-6 text-center"></i>
-                        <span x-show="!sidebarCollapsed">AI Journal Studio</span>
+                        <span x-show="!sidebarCollapsed">AI Journal</span>
                         <span class="bg-purple-100 text-purple-800 text-xs px-2 py-1 rounded" x-show="!sidebarCollapsed">
                             Pro
                         </span>
@@ -330,12 +330,13 @@
         <!-- Footer -->
         <footer class="bg-white border-t border-gray-200 mt-8 py-6 px-6">
             <div class="flex flex-col md:flex-row justify-between items-center">
-                <div class="text-gray-600 text-sm mb-4 md:mb-0">
+                <div class="text-sm text-gray-500">
                     &copy; {{ date('Y') }} Querentia. Accelerating academic impact.
                 </div>
                 <div class="flex space-x-6">
-                    <a href="#" class="text-gray-600 hover:text-purple-600 text-sm">Terms</a>
-                    <a href="#" class="text-gray-600 hover:text-purple-600 text-sm">Privacy</a>
+                    <a href="{{ route('legal.terms') }}" class="text-gray-600 hover:text-purple-600 text-sm">Terms</a>
+                    <a href="{{ route('legal.privacy') }}" class="text-gray-600 hover:text-purple-600 text-sm">Privacy</a>
+                    <a href="{{ route('legal.community') }}" class="text-gray-600 hover:text-purple-600 text-sm">Community</a>
                     <a href="#" class="text-gray-600 hover:text-purple-600 text-sm">Help Center</a>
                     <a href="#" class="text-gray-600 hover:text-purple-600 text-sm">Contact</a>
                 </div>

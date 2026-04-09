@@ -1,4 +1,4 @@
-@extends('layouts.app')
+@extends('layouts.network')
 
 @section('title', 'Blog - Querentia')
 

@@ -42,7 +42,14 @@ return [
             'encryption' => env('MAIL_ENCRYPTION', 'tls'),
             'username' => env('MAIL_USERNAME'),
             'password' => env('MAIL_PASSWORD'),
-            'timeout' => null,
+            'timeout' => env('MAIL_TIMEOUT', 5),
+            'stream' => [
+                'ssl' => [
+                    'verify_peer' => env('MAIL_TLS_VERIFY_PEER', true),
+                    'verify_peer_name' => env('MAIL_TLS_VERIFY_PEER_NAME', true),
+                    'allow_self_signed' => env('MAIL_TLS_ALLOW_SELF_SIGNED', false),
+                ],
+            ],
             'local_domain' => env('MAIL_EHLO_DOMAIN'),
         ],
 

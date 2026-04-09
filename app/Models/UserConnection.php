@@ -27,8 +27,20 @@ class UserConnection extends Model
         return $this->belongsTo(User::class, 'user_id');
     }
 
+    // Alias for sender (used in views)
+    public function sender()
+    {
+        return $this->belongsTo(User::class, 'user_id');
+    }
+
     // User who received the request
     public function connectedUser()
+    {
+        return $this->belongsTo(User::class, 'connected_user_id');
+    }
+
+    // Alias for receiver
+    public function receiver()
     {
         return $this->belongsTo(User::class, 'connected_user_id');
     }

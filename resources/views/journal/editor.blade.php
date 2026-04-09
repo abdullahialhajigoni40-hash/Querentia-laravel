@@ -4,11 +4,20 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>@yield('title', 'Journal Editor - Querentia AI')</title>
+    <title>@yield('title', 'Journal Editor - Querentia AI') - {{ time() }}</title>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
-    <script src="{{ asset('js/ai-streaming.js') }}"></script>
+    <style>
+        /* Font Awesome fallback icons */
+        .fa-robot:before { content: "🤖"; }
+        .fa-spinner:before { content: "⏳"; }
+        .fa-check:before { content: "✓"; }
+        .fa-times:before { content: "✕"; }
+        .fa-save:before { content: "💾"; }
+        .fa-eye:before { content: "👁"; }
+        .fa-download:before { content: "⬇"; }
+    </style>
     <style>
         .fade-enter-active, .fade-leave-active {
             transition: opacity 0.2s ease;
@@ -42,7 +51,7 @@
                             <span class="text-white font-bold text-lg">Q</span>
                         </div>
                         <div>
-                            <h1 class="font-bold text-gray-900">AI Journal Studio</h1>
+                            <h1 class="font-bold text-gray-900">AI Journal</h1>
                             <p class="text-xs text-gray-500">Transform research into publication-ready journals</p>
                         </div>
                     </div>
@@ -71,16 +80,16 @@
                                 :disabled="isSaving"
                                 :class="isSaving ? 'opacity-75 cursor-not-allowed' : 'hover:bg-green-700'"
                                 class="px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-medium flex items-center">
-                            <template x-if="isSaving">
+                            <div x-show="isSaving" style="display: none;">
                                 <i class="fas fa-spinner fa-spin mr-2"></i>
-                            </template>
-                            <template x-if="!isSaving">
+                            </div>
+                            <div x-show="!isSaving" style="display: none;">
                                 <i class="fas fa-save mr-2"></i>
-                            </template>
+                            </div>
                             <span x-text="isSaving ? 'Saving...' : 'Save'"></span>
                         </button>
                         
-                        <template x-if="journalId && canGenerateAI">
+                        <div x-show="canGenerateAI" style="display: none;">
                             <button @click="generateAIDraft()"
                                     :disabled="isGeneratingAI || !canGenerateAI"
                                     :class="(isGeneratingAI || !canGenerateAI) ? 'opacity-75 cursor-not-allowed' : 'hover:opacity-90'"
@@ -88,7 +97,7 @@
                                 <i class="fas fa-robot mr-2"></i>
                                 <span>AI Generate</span>
                             </button>
-                        </template>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -203,35 +212,8 @@
                                 <p class="text-gray-600" x-text="sections[activeSection].subtitle"></p>
                             </div>
                             <div class="flex items-center space-x-2">
-                                <template x-if="[0,2,3,6,7,8].includes(activeSection)">
+                                <div x-show="[0,2,3,6,7,8].includes(activeSection)" style="display: none;">
                                     <span class="text-xs text-red-500 font-medium">Required</span>
-                                </template>
-                                <button @click="enhanceWithAI()"
-                                        :disabled="!canEnhanceSection || isEnhancing"
-                                        :class="(!canEnhanceSection || isEnhancing) ? 'opacity-50 cursor-not-allowed' : 'hover:bg-purple-50'"
-                                        class="px-3 py-1.5 text-sm border border-purple-200 text-purple-600 rounded-lg flex items-center transition-colors">
-                                    <template x-if="isEnhancing">
-                                        <i class="fas fa-spinner fa-spin mr-1"></i>
-                                    </template>
-                                    <template x-if="!isEnhancing">
-                                        <i class="fas fa-magic mr-1"></i>
-                                    </template>
-                                    <span x-text="isEnhancing ? 'Enhancing...' : 'AI Enhance'"></span>
-                                </button>
-                            </div>
-                        </div>
-                        
-                        <!-- AI Tip -->
-                        <div class="mt-3 bg-blue-50 border border-blue-100 rounded-lg p-3">
-                            <div class="flex items-start">
-                                <i class="fas fa-robot text-blue-500 mt-0.5 mr-2"></i>
-                                <div class="flex-1">
-                                    <p class="text-xs text-blue-800" x-text="sections[activeSection].aiTip"></p>
-                                    <template x-if="activeSection === 1">
-                                        <div class="mt-1 text-xs text-blue-700">
-                                            <p>Click "Add Author" below to add more authors</p>
-                                        </div>
-                                    </template>
                                 </div>
                             </div>
                         </div>
@@ -242,7 +224,7 @@
             <!-- Editor Content -->
             <div class="space-y-6">
                 <!-- Research Topic Section (0) -->
-                <template x-if="activeSection === 0">
+                <div x-show="activeSection === 0" style="display: none;">
                     <div class="space-y-4">
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-2">
@@ -260,10 +242,10 @@
                             </div>
                         </div>
                     </div>
-                </template>
+                </div>
 
                 <!-- Authors Section (1) -->
-                <template x-if="activeSection === 1">
+                <div x-show="activeSection === 1" style="display: none;">
                     <div class="space-y-6">
                         <div class="flex justify-between items-center">
                             <h3 class="font-medium text-gray-900">Authors & Affiliations</h3>
@@ -275,9 +257,7 @@
                         
                         <div class="space-y-4" id="authors-list">
                             <template x-for="(author, index) in sections[1].authors" :key="'author-' + index">
-                                <div class="border border-gray-200 rounded-lg p-4 bg-white hover:bg-gray-50 transition-colors"
-                                     x-transition:enter="fade-enter-active"
-                                     x-transition:leave="fade-leave-active">
+                                <div class="border border-gray-200 rounded-lg p-4 bg-white hover:bg-gray-50 transition-colors">
                                     <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-3">
                                         <div>
                                             <label class="block text-xs font-medium text-gray-700 mb-1">Full Name *</label>
@@ -334,45 +314,42 @@
                             </button>
                         </div>
                     </div>
-                </template>
+                </div>
 
                 <!-- Text Sections (2-9) -->
-                <template x-if="activeSection >= 2 && activeSection <= 9">
+                <div x-show="activeSection >= 2 && activeSection <= 9" style="display: none;">
                     <div class="space-y-4">
                         <!-- Word Count Recommendations -->
-                        <template x-if="[2,3,6,7,8].includes(activeSection)">
+                        <div x-show="[2,3,4,5,6,7,8].includes(activeSection)" style="display: none;">
                             <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center space-y-2 sm:space-y-0 p-3 bg-gray-50 rounded-lg">
                                 <div class="text-xs text-gray-600">
                                     <span class="font-medium">Recommended: </span>
-                                    <template x-if="activeSection === 2">150-250 words</template>
-                                    <template x-if="activeSection === 3">300-500 words</template>
-                                    <template x-if="activeSection === 6">200-400 words</template>
-                                    <template x-if="activeSection === 7">400-600 words</template>
-                                    <template x-if="activeSection === 8">150-250 words</template>
+                                    <span x-show="activeSection === 2" style="display: none;">150-250 words</span>
+                                    <span x-show="activeSection === 3" style="display: none;">300-500 words</span>
+                                    <span x-show="activeSection === 4" style="display: none;">50-100 words</span>
+                                    <span x-show="activeSection === 5" style="display: none;">300-600 words</span>
+                                    <span x-show="activeSection === 6" style="display: none;">200-400 words</span>
+                                    <span x-show="activeSection === 7" style="display: none;">400-600 words</span>
+                                    <span x-show="activeSection === 8" style="display: none;">150-250 words</span>
                                 </div>
                                 <div class="flex items-center space-x-3">
                                     <div class="text-xs font-medium" 
                                          :class="getWordCountClass(activeSection, sections[activeSection].content)">
                                         <span x-text="getWordCount(sections[activeSection].content)"></span> words
                                     </div>
-                                    <template x-if="getWordCountClass(activeSection, sections[activeSection].content) === 'text-green-600'">
+                                    <div x-show="getWordCountClass(activeSection, sections[activeSection].content) === 'text-green-600'" style="display: none;">
                                         <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
                                             <i class="fas fa-check mr-1"></i> Good
                                         </span>
-                                    </template>
-                                    <template x-else-if="getWordCountClass(activeSection, sections[activeSection].content) === 'text-yellow-600'">
+                                    </div>
+                                    <div x-show="getWordCountClass(activeSection, sections[activeSection].content) === 'text-yellow-600'" style="display: none;">
                                         <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
                                             <i class="fas fa-exclamation mr-1"></i> Add more
                                         </span>
-                                    </template>
-                                    <template x-else-if="getWordCountClass(activeSection, sections[activeSection].content) === 'text-red-600'">
-                                        <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
-                                            <i class="fas fa-exclamation-triangle mr-1"></i> Too long
-                                        </span>
-                                    </template>
+                                    </div>
                                 </div>
                             </div>
-                        </template>
+                        </div>
                         
                         <!-- Textarea -->
                         <textarea x-model="sections[activeSection].content"
@@ -380,219 +357,212 @@
                                   :rows="getTextareaRows(activeSection)"
                                   class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-y font-sans"
                                   :placeholder="sections[activeSection].placeholder"></textarea>
+
+                        <!-- Maps & Figures (under Area of Study) -->
+                        <div x-show="activeSection === 4" style="display: none;">
+                            <div class="border-t border-gray-200 pt-6 mt-2">
+                                <div class="text-sm font-semibold text-gray-800 tracking-wider">MAPS &amp; FIGURES</div>
+
+                                <div class="mt-3 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                                    <div class="text-xs text-gray-500">JPG, PNG, PDF only</div>
+                                    <div class="flex items-center gap-2">
+                                        <input id="figure-upload-input" type="file" class="hidden" multiple accept=".jpg,.jpeg,.png,.pdf" @change="handleFigureFileInput($event)">
+                                        <button type="button"
+                                                @click="openFigureFilePicker()"
+                                                class="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700">
+                                            Upload Map/Figure
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div class="mt-4">
+                                    <div class="text-sm font-medium text-gray-800">Uploaded Files:</div>
+                                    <div class="mt-2 space-y-2">
+                                        <template x-for="(fig, fIndex) in (sections[4].figures || [])" :key="'fig-' + fig.id">
+                                            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border border-gray-200 rounded-lg p-3 bg-white">
+                                                <div class="flex items-center gap-3">
+                                                    <div class="text-sm font-semibold text-gray-900" x-text="'Figure ' + (fIndex + 1) + ':'"></div>
+                                                    <a :href="fig.url" target="_blank" class="text-sm text-blue-700 hover:underline" x-text="fig.original_name || ('Figure ' + (fIndex + 1))"></a>
+                                                </div>
+
+                                                <div class="flex items-center gap-2">
+                                                    <button type="button"
+                                                            @click="selectFigureForCaption(fig.id)"
+                                                            class="px-3 py-1.5 text-sm bg-gray-50 hover:bg-gray-100 rounded-lg">
+                                                        Edit Caption
+                                                    </button>
+                                                    <button type="button"
+                                                            @click="deleteFigure(fig.id)"
+                                                            class="px-3 py-1.5 text-sm text-red-700 bg-red-50 hover:bg-red-100 rounded-lg">
+                                                        Delete
+                                                    </button>
+                                                    <div class="flex items-center gap-1">
+                                                        <button type="button"
+                                                                @click="moveFigureUp(fIndex)"
+                                                                :disabled="fIndex === 0"
+                                                                :class="fIndex === 0 ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-100'"
+                                                                class="px-2 py-1.5 text-sm bg-gray-50 rounded-lg">
+                                                            ↑
+                                                        </button>
+                                                        <button type="button"
+                                                                @click="moveFigureDown(fIndex)"
+                                                                :disabled="fIndex === (sections[4].figures || []).length - 1"
+                                                                :class="fIndex === (sections[4].figures || []).length - 1 ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-100'"
+                                                                class="px-2 py-1.5 text-sm bg-gray-50 rounded-lg">
+                                                            ↓
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </template>
+
+                                        <div x-show="!(sections[4].figures && sections[4].figures.length)" class="text-sm text-gray-500 py-2">
+                                            No maps/figures uploaded yet.
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="mt-4">
+                                    <div class="text-sm font-medium text-gray-800">Caption for selected:</div>
+                                    <div class="mt-2 grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                        <div class="sm:col-span-2">
+                                            <input type="text"
+                                                   x-model="figureCaptionDraft"
+                                                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                                                   placeholder="Write a short caption..."
+                                                   :disabled="!selectedFigureId">
+                                        </div>
+                                        <div class="flex items-center gap-2">
+                                            <button type="button"
+                                                    @click="saveSelectedFigureCaption()"
+                                                    :disabled="!selectedFigureId"
+                                                    :class="!selectedFigureId ? 'opacity-50 cursor-not-allowed' : 'hover:bg-green-700'"
+                                                    class="px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-medium">
+                                                Save Caption
+                                            </button>
+                                            <button type="button"
+                                                    @click="clearSelectedFigure()"
+                                                    :disabled="!selectedFigureId"
+                                                    :class="!selectedFigureId ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-100'"
+                                                    class="px-4 py-2 bg-gray-50 rounded-lg text-sm font-medium">
+                                                Clear
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Methodology Sub-sections (repeatable blocks) -->
+                        <div x-show="sections[activeSection].key === 'methodology'" style="display: none;">
+                            <div class="mt-4 border border-gray-200 rounded-lg p-4 bg-gray-50">
+                                <div class="flex justify-between items-center">
+                                    <div class="text-sm font-medium text-gray-800">Additional Methodology Notes</div>
+                                    <button type="button"
+                                            @click="addMethodologyBlock()"
+                                            class="px-3 py-1.5 text-sm bg-purple-50 text-purple-600 hover:bg-purple-100 rounded-lg transition-colors flex items-center">
+                                        <i class="fas fa-plus mr-1"></i>Add
+                                    </button>
+                                </div>
+
+                                <div class="mt-4 space-y-4">
+                                    <template x-for="(block, bIndex) in (sections[activeSection].blocks || [])" :key="'method-block-' + bIndex">
+                                        <div class="border border-gray-200 rounded-lg p-3 bg-white">
+                                            <div class="flex justify-between items-center mb-2">
+                                                <input type="text"
+                                                       x-model="sections[activeSection].blocks[bIndex].title"
+                                                       @input="debounceSave()"
+                                                       class="w-full mr-3 px-3 py-2 border border-gray-300 rounded focus:ring-1 focus:ring-purple-500 focus:border-transparent"
+                                                       placeholder="e.g., Data Sampling / Data Analysis">
+                                                <button type="button"
+                                                        @click="removeMethodologyBlock(bIndex)"
+                                                        class="px-2 py-2 text-red-600 hover:text-red-800 hover:bg-red-50 rounded transition-colors flex items-center">
+                                                    <i class="fas fa-trash"></i>
+                                                </button>
+                                            </div>
+                                            <textarea x-model="sections[activeSection].blocks[bIndex].content"
+                                                      @input="debounceSave()"
+                                                      rows="4"
+                                                      class="w-full px-3 py-2 border border-gray-300 rounded focus:ring-1 focus:ring-purple-500 focus:border-transparent resize-y"
+                                                      placeholder="Write additional methodology details..."></textarea>
+                                        </div>
+                                    </template>
+                                </div>
+                            </div>
+                        </div>
                         
                         <!-- Simple Word Count for Other Sections -->
-                        <template x-if="![2,3,6,7,8].includes(activeSection)">
+                        <div x-show="![2,3,6,7,8].includes(activeSection)" style="display: none;">
                             <div class="flex justify-end">
                                 <div class="text-xs text-gray-500">
                                     <span x-text="getWordCount(sections[activeSection].content)"></span> words
                                 </div>
                             </div>
-                        </template>
+                        </div>
                     </div>
-                </template>
+                </div>
 
                 <!-- Annexes Section (10) -->
-                <template x-if="activeSection === 10">
+                <div x-show="activeSection === 10" style="display: none;">
                     <div class="space-y-6">
-                        <!-- Upload Area -->
-                        <div class="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-purple-400 transition-colors cursor-pointer"
-                             @dragover.prevent="dragOver = true"
-                             @dragleave.prevent="dragOver = false"
-                             @drop.prevent="handleFileDrop($event, 'annex')"
-                             :class="dragOver ? 'border-purple-500 bg-purple-50' : ''"
-                             @click="triggerFileUpload('annex')">
-                            <i class="fas fa-paperclip text-3xl text-gray-400 mb-3"></i>
-                            <p class="text-gray-600 mb-2 font-medium">Drag and drop files here or click to upload</p>
-                            <p class="text-sm text-gray-500 mb-4">Supports PDF, DOCX, XLSX, images (max 10MB each)</p>
-                            <button class="mt-4 px-5 py-2.5 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-medium">
-                                Browse Files
-                            </button>
-                            <input type="file" id="annex-upload" class="hidden" multiple>
-                        </div>
-                        
-                        <!-- Uploaded Files List -->
-                        <div class="space-y-3" x-show="sections[10].files && sections[10].files.length > 0">
-                            <h4 class="font-medium text-gray-900 mb-3 text-lg">Uploaded Files</h4>
-                            <template x-for="(file, index) in sections[10].files" :key="'file-' + index">
-                                <div class="border border-gray-200 rounded-lg p-4 bg-white hover:bg-gray-50 transition-colors">
-                                    <div class="flex items-center justify-between">
-                                        <div class="flex items-center space-x-4">
-                                            <div class="w-12 h-12 bg-gradient-to-br from-purple-100 to-blue-100 rounded-lg flex items-center justify-center">
-                                                <i class="fas fa-file text-purple-600"></i>
-                                            </div>
-                                            <div class="min-w-0 flex-1">
-                                                <p class="font-medium text-gray-900 truncate" x-text="file.name"></p>
-                                                <div class="flex items-center space-x-3 mt-1">
-                                                    <span class="text-xs text-gray-500" x-text="formatFileSize(file.size)"></span>
-                                                    <span class="text-xs px-2 py-0.5 bg-gray-100 text-gray-600 rounded-full">
-                                                        <span x-text="(file.type || '').split('/')[1]?.toUpperCase() || 'FILE'"></span>
-                                                    </span>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div class="flex items-center space-x-2">
-                                            <a :href="file.url" 
-                                               target="_blank" 
-                                               class="p-2 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-lg transition-colors"
-                                               title="Preview">
-                                                <i class="fas fa-eye"></i>
-                                            </a>
-                                            <button @click="removeFile(10, index)" 
-                                                    class="p-2 text-red-600 hover:text-red-800 hover:bg-red-50 rounded-lg transition-colors"
-                                                    title="Remove">
-                                                <i class="fas fa-trash"></i>
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
-                            </template>
-                        </div>
+                        <p class="text-gray-600">File upload functionality coming soon...</p>
                     </div>
-                </template>
+                </div>
 
                 <!-- Maps & Figures Section (11) -->
-                <template x-if="activeSection === 11">
+                <div x-show="activeSection === 11" style="display: none;">
                     <div class="space-y-6">
-                        <!-- Upload Area -->
-                        <div class="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-purple-400 transition-colors cursor-pointer"
-                             @dragover.prevent="dragOver = true"
-                             @dragleave.prevent="dragOver = false"
-                             @drop.prevent="handleFileDrop($event, 'figure')"
-                             :class="dragOver ? 'border-purple-500 bg-purple-50' : ''"
-                             @click="triggerFileUpload('figure')">
-                            <i class="fas fa-images text-3xl text-gray-400 mb-3"></i>
-                            <p class="text-gray-600 mb-2 font-medium">Drag and drop images here or click to upload</p>
-                            <p class="text-sm text-gray-500 mb-4">Supports JPG, PNG, SVG, GIF (max 5MB each)</p>
-                            <button class="mt-4 px-5 py-2.5 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-medium">
-                                Browse Images
-                            </button>
-                            <input type="file" id="figure-upload" class="hidden" accept="image/*" multiple>
-                        </div>
-                        
-                        <!-- Uploaded Images Grid -->
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6" 
-                             x-show="sections[11].figures && sections[11].figures.length > 0">
-                            <div class="col-span-full">
-                                <h4 class="font-medium text-gray-900 mb-3 text-lg">Uploaded Visuals</h4>
-                            </div>
-                            <template x-for="(figure, index) in sections[11].figures" :key="'figure-' + index">
-                                <div class="border border-gray-200 rounded-xl overflow-hidden bg-white hover:shadow-md transition-shadow">
-                                    <div class="p-5">
-                                        <!-- Figure Header -->
-                                        <div class="flex justify-between items-start mb-4">
-                                            <div class="flex-1">
-                                                <div class="flex items-center">
-                                                    <span class="inline-flex items-center justify-center w-8 h-8 bg-purple-100 text-purple-700 rounded-full text-sm font-bold mr-2">
-                                                        <span x-text="index + 1"></span>
-                                                    </span>
-                                                    <div>
-                                                        <p class="font-medium text-gray-900">Figure <span x-text="index + 1"></span></p>
-                                                        <p class="text-xs text-gray-500 truncate max-w-[200px]" 
-                                                           x-text="figure.caption || 'Add a caption...'"></p>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <button @click="removeFigure(index)" 
-                                                    class="ml-2 p-2 text-red-600 hover:text-red-800 hover:bg-red-50 rounded-lg transition-colors">
-                                                <i class="fas fa-trash"></i>
-                                            </button>
-                                        </div>
-                                        
-                                        <!-- Image Preview -->
-                                        <div class="bg-gray-50 h-48 rounded-lg flex items-center justify-center overflow-hidden mb-4">
-                                            <template x-if="figure.url">
-                                                <img :src="figure.url" 
-                                                     :alt="figure.caption || 'Figure ' + (index + 1)"
-                                                     class="max-h-full max-w-full object-contain p-2">
-                                            </template>
-                                            <template x-if="!figure.url && figure.file">
-                                                <div class="text-center">
-                                                    <i class="fas fa-image text-gray-300 text-4xl mb-2"></i>
-                                                    <p class="text-xs text-gray-400">Uploading...</p>
-                                                </div>
-                                            </template>
-                                        </div>
-                                        
-                                        <!-- Caption Input -->
-                                        <div class="space-y-3">
-                                            <div>
-                                                <label class="block text-xs font-medium text-gray-700 mb-1.5">Figure Caption</label>
-                                                <textarea x-model="sections[11].figures[index].caption"
-                                                          @input="debounceSave()"
-                                                          rows="2"
-                                                          class="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-purple-500 focus:border-transparent resize-none"
-                                                          placeholder="Describe this figure..."></textarea>
-                                            </div>
-                                            <div>
-                                                <label class="block text-xs font-medium text-gray-700 mb-1.5">Source/Citation</label>
-                                                <input type="text" 
-                                                       x-model="sections[11].figures[index].source"
-                                                       @input="debounceSave()"
-                                                       class="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-purple-500 focus:border-transparent"
-                                                       placeholder="Source or citation (if applicable)...">
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </template>
-                        </div>
+                        <p class="text-gray-600">Image upload functionality coming soon...</p>
                     </div>
-                </template>
+                </div>
             </div>
 
             <!-- Navigation -->
             <div class="mt-8 flex justify-between">
                 <button @click="previousSection()"
-                        :disabled="activeSection === 0 || isNavigating"
-                        :class="(activeSection === 0 || isNavigating) ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-50'"
+                        :disabled="activeSection === 0"
+                        :class="activeSection === 0 ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-50'"
                         class="px-6 py-3 border border-gray-300 rounded-lg font-medium flex items-center transition-colors">
                     <i class="fas fa-arrow-left mr-2"></i>Previous
                 </button>
                 
-                <template x-if="activeSection === {{ count($sections) - 1 }}">
+                <div x-show="activeSection === {{ count($sections) - 1 }}" style="display: none;">
                     <button @click="generateAIDraft()"
                             :disabled="!canGenerateAI || isGeneratingAI"
                             :class="(!canGenerateAI || isGeneratingAI) ? 'opacity-75 cursor-not-allowed' : 'hover:opacity-90'"
                             class="px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-500 text-white rounded-lg font-medium flex items-center transition-all">
-                        <template x-if="isGeneratingAI">
+                        <div x-show="isGeneratingAI" style="display: none;">
                             <i class="fas fa-spinner fa-spin mr-2"></i>
                             <span>Generating...</span>
-                        </template>
-                        <template x-if="!isGeneratingAI">
+                        </div>
+                        <div x-show="!isGeneratingAI" style="display: none;">
                             <i class="fas fa-robot mr-2"></i>
                             <span>Generate AI Draft</span>
-                        </template>
+                        </div>
                     </button>
-                </template>
+                </div>
                 
-                <template x-if="activeSection !== {{ count($sections) - 1 }}">
+                <div x-show="activeSection !== {{ count($sections) - 1 }}" style="display: none;">
                     <button @click="nextSection()"
-                            :disabled="isNavigating"
-                            :class="isNavigating ? 'opacity-50 cursor-not-allowed' : 'hover:opacity-90'"
                             class="px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-500 text-white rounded-lg font-medium flex items-center transition-all">
                         Next <i class="fas fa-arrow-right ml-2"></i>
                     </button>
-                </template>
+                </div>
             </div>
         </div>
     </div>
 
     <!-- AI Generation Modal -->
-    <div id="ai-modal" class="hidden fixed inset-0 bg-black bg-opacity-75 z-50 flex items-center justify-center p-4">
+    <div id="ai-modal" class="fixed inset-0 bg-black bg-opacity-75 z-50 hidden items-center justify-center p-4">
         <div class="bg-white rounded-xl shadow-xl w-full max-w-4xl max-h-[90vh] overflow-hidden">
             <div class="bg-gradient-to-r from-purple-600 to-blue-500 text-white p-6">
                 <div class="flex justify-between items-center">
                     <div>
                         <h3 class="text-xl font-bold">AI Journal Generation</h3>
-                        <p id="ai-status" class="text-purple-200 text-sm mt-1">DeepSeek AI is writing your journal...</p>
+                        <p id="ai-status" class="text-purple-200">Querentia AI is writing your journal...</p>
                     </div>
                     <div class="flex items-center space-x-3">
                         <span class="text-sm bg-white/20 px-3 py-1 rounded-full">Live Preview</span>
-                        <button @click="closeAIModal()" 
-                                class="text-white hover:text-gray-200 p-2 rounded-full hover:bg-white/10 transition-colors">
-                            <i class="fas fa-times text-lg"></i>
-                        </button>
                     </div>
                 </div>
             </div>
@@ -611,77 +581,22 @@
                 
                 <!-- Live Preview -->
                 <div class="border rounded-lg p-4 bg-gray-50 max-h-[50vh] overflow-y-auto">
-                    <h4 class="font-medium text-gray-900 mb-3 flex items-center">
-                        <i class="fas fa-eye mr-2 text-purple-500"></i>Live Preview
-                    </h4>
-                    <div id="journal-preview" class="font-sans text-gray-800 bg-white p-4 rounded border min-h-[40vh] leading-relaxed">
-                        <div class="text-center py-8 text-gray-400">
-                            <i class="fas fa-robot text-3xl mb-3 animate-pulse"></i>
-                            <p>AI-generated content will appear here...</p>
-                        </div>
+                    <h4 class="font-medium text-gray-900 mb-3">Live Preview</h4>
+                    <div id="journal-preview" class="font-mono text-sm bg-white p-4 rounded border whitespace-pre-wrap min-h-[40vh]">
+                        <!-- AI content will appear here -->
                     </div>
                 </div>
                 
-                <!-- Action Buttons -->
                 <div class="mt-6 flex justify-end space-x-3">
                     <button @click="closeAIModal()" 
-                            class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-100 transition-colors font-medium">
+                            class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-100">
                         Cancel
                     </button>
-                    <button id="save-ai-draft" 
-                    @click="confirmSaveAIDraft()"
-                    disabled
-                    class="px-4 py-2 bg-gradient-to-r from-purple-600 to-blue-500 text-white rounded-lg hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed font-medium flex items-center">
-                         <i class="fas fa-paper-plane mr-2"></i>Post for Review
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Section Enhancement Modal -->
-    <div id="enhance-modal" class="hidden fixed inset-0 bg-black bg-opacity-75 z-50 flex items-center justify-center p-4">
-        <div class="bg-white rounded-xl shadow-xl w-full max-w-2xl">
-            <div class="bg-gradient-to-r from-purple-600 to-blue-500 text-white p-6">
-                <div class="flex justify-between items-center">
-                    <div>
-                        <h3 class="text-xl font-bold">AI Section Enhancement</h3>
-                        <p class="text-purple-200 text-sm mt-1" id="enhance-status">Enhancing your content...</p>
-                    </div>
-                    <button onclick="document.getElementById('enhance-modal').classList.add('hidden')" 
-                            class="text-white hover:text-gray-200 p-2 rounded-full hover:bg-white/10 transition-colors">
-                        <i class="fas fa-times text-lg"></i>
-                    </button>
-                </div>
-            </div>
-            
-            <div class="p-6">
-                <div class="mb-4">
-                    <div class="flex justify-between items-center mb-2">
-                        <span class="text-sm font-medium text-gray-700">Progress</span>
-                        <span id="enhance-progress-percent" class="text-sm font-bold text-purple-600">0%</span>
-                    </div>
-                    <div class="w-full bg-gray-200 rounded-full h-2">
-                        <div id="enhance-progress-bar" class="bg-gradient-to-r from-purple-500 to-blue-500 h-2 rounded-full transition-all duration-300" style="width: 0%"></div>
-                    </div>
-                </div>
-                
-                <div class="border rounded-lg p-4 bg-gray-50 max-h-[40vh] overflow-y-auto">
-                    <h4 class="font-medium text-gray-900 mb-3">Enhanced Content</h4>
-                    <div id="enhanced-content" class="font-sans text-gray-800 bg-white p-4 rounded border min-h-[30vh] leading-relaxed">
-                        <!-- Enhanced content will appear here -->
-                    </div>
-                </div>
-                
-                <div class="mt-6 flex justify-end space-x-3">
-                    <button onclick="document.getElementById('enhance-modal').classList.add('hidden')"
-                            class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-100 transition-colors font-medium">
-                        Cancel
-                    </button>
-                    <button id="apply-enhancement" 
-                            onclick="applyEnhancedContent()"
-                            class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium flex items-center">
-                        <i class="fas fa-check mr-2"></i>Apply Changes
+                    <button id="post-for-review" 
+                            disabled
+                            onclick="goToPreviewOrEdit()"
+                            class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed">
+                        <i class="fas fa-eye mr-2"></i>Click to preview or edit
                     </button>
                 </div>
             </div>
@@ -689,22 +604,50 @@
     </div>
 
     <script>
-        // Store sections data in a global variable before Alpine initialization
-        const initialSections = {!! json_encode($sections, JSON_HEX_TAG|JSON_HEX_AMP|JSON_HEX_APOS|JSON_HEX_QUOT) !!};
-        const initialJournalId = {{ $journal->id ?? 'null' }};
+        // @ts-nocheck
+        // Minimal bootstrap: expose server-side data as window globals, then load the editor script inline.
+        (function() {
+        window.initialSections = @json($sections, JSON_HEX_TAG|JSON_HEX_AMP|JSON_HEX_APOS|JSON_HEX_QUOT);
+        window.initialJournalId = {{ $journal->id ?? 'null' }};
+        window.journalTitle = "{{ $journal->title ?? 'New Journal' }}";
+        window.csrfToken = document.querySelector('meta[name="csrf-token"]') ? document.querySelector('meta[name="csrf-token"]').getAttribute('content') : '{{ csrf_token() }}';
+        window.currentUser = {
+            full_name: '{{ auth()->user()->full_name ?? "Your Name" }}',
+            institution: '{{ auth()->user()->institution ?? "Your Institution" }}',
+            email: '{{ auth()->user()->email ?? "" }}'
+        };
         
-        // Helper function to get CSRF token
-        function getCsrfToken() {
-            const token = document.querySelector('meta[name="csrf-token"]');
-            return token ? token.getAttribute('content') : '{{ csrf_token() }}';
-        }
+        // Debug logging
+        console.log('=== JOURNAL DEBUG ===');
+        console.log('Loading Journal ID:', window.initialJournalId);
+        console.log('Journal Title:', window.journalTitle);
+        @if(isset($existing_data))
+            console.log('Existing Data:', @json($existing_data, JSON_HEX_TAG|JSON_HEX_AMP|JSON_HEX_APOS|JSON_HEX_QUOT));
+            window.__existingData = @json($existing_data, JSON_HEX_TAG|JSON_HEX_AMP|JSON_HEX_APOS|JSON_HEX_QUOT);
+        @else
+            console.log('No existing data - fresh journal');
+            window.__existingData = {};
+        @endif
+        console.log('==================');
 
-        // Global variables for AI streaming
-        let aiStreamController = null;
-        let enhanceStreamController = null;
-        
-        document.addEventListener('alpine:init', () => {
-            Alpine.data('journalEditor', () => ({
+        // Inline journal editor script - Register component immediately
+        (() => {
+            // Use globals provided by the Blade template
+            const initialSections = window.initialSections || [];
+            const initialJournalId = typeof window.initialJournalId !== 'undefined' ? window.initialJournalId : null;
+
+            function getCsrfToken() {
+                return window.csrfToken || '';
+            }
+
+            // Global variables for AI streaming
+            let aiStreamController = null;
+            let enhanceStreamController = null;
+
+            // Register Alpine component after Alpine loads
+            document.addEventListener('alpine:init', () => {
+                // Register the Alpine component
+                Alpine.data('journalEditor', () => ({
                 // State variables
                 activeSection: 0,
                 saveStatus: 'Saved',
@@ -715,7 +658,57 @@
                 dragOver: false,
                 journalId: initialJournalId,
                 sections: initialSections,
-                
+
+                // Computed properties
+                get completedSections() {
+                    return this.sections.filter((section, index) => this.isSectionComplete(index)).length;
+                },
+                get totalWordCount() {
+                    return this.sections.reduce((count, section, index) => {
+                        if (index === 1 && section.authors) {
+                            return count + section.authors.reduce((sum, author) => sum + (author.name + ' ' + author.affiliation).split(/\s+/).length, 0);
+                        }
+                        // Include methodology blocks in word count
+                        if (section.key === 'methodology' && Array.isArray(section.blocks)) {
+                            const blocksWords = section.blocks.reduce((sum, block) => {
+                                return sum + (block.content || '').split(/\s+/).filter(w => w).length;
+                            }, 0);
+                            return count + blocksWords;
+                        }
+                        return count + (section.content || '').split(/\s+/).filter(w => w).length;
+                    }, 0);
+                },
+                get humanWordCount() {
+                    return this.totalWordCount - this.aiWordCount;
+                },
+                get aiWordCount() {
+                    return this.sections.reduce((count, section, index) => {
+                        if (index >= 2 && index <= 9) {
+                            return count + (section.content || '').split(/\s+/).filter(w => w).length * 0.7;
+                        }
+                        return count;
+                    }, 0);
+                },
+                get aiPercentage() {
+                    return this.totalWordCount > 0 ? Math.round((this.aiWordCount / this.totalWordCount) * 100) : 0;
+                },
+                get completionPercentage() {
+                    return Math.round((this.completedSections / this.sections.length) * 100);
+                },
+                get canGenerateAI() {
+                    // Allow AI generation with minimal content
+                    return this.sections.some(section => {
+                        return section.content && section.content.trim().length > 10;
+                    });
+                },
+                get canEnhanceSection() {
+                    // Don't allow AI enhancement for Title section (index 0) as titles come from school
+                    if (this.activeSection === 0) return false;
+                    
+                    const section = this.sections[this.activeSection];
+                    return section && section.content && section.content.trim().length > 0;
+                },
+
                 // Initialize sections with proper data structure
                 initSections() {
                     this.sections.forEach((section, index) => {
@@ -723,114 +716,384 @@
                             case 1: // Authors
                                 if (!section.authors || !Array.isArray(section.authors)) {
                                     section.authors = [{
-                                        name: '{{ auth()->user()->full_name ?? "Your Name" }}',
-                                        affiliation: '{{ auth()->user()->institution ?? "Your Institution" }}',
-                                        email: '{{ auth()->user()->email ?? "" }}',
+                                        name: (window.currentUser && window.currentUser.full_name) || 'Your Name',
+                                        affiliation: (window.currentUser && window.currentUser.institution) || 'Your Institution',
+                                        email: (window.currentUser && window.currentUser.email) || '',
                                         corresponding: true
                                     }];
                                 }
                                 break;
-                                
+
                             case 10: // Annexes
                                 if (!section.files) section.files = [];
                                 break;
-                                
+
                             case 11: // Maps & Figures
                                 if (!section.figures) section.figures = [];
                                 break;
-                                
+
                             default:
                                 if (typeof section.content === 'undefined') {
                                     section.content = '';
                                 }
+
+                                if (section && section.key === 'area_of_study') {
+                                    if (!Array.isArray(section.figures)) {
+                                        section.figures = [];
+                                    }
+                                }
+
+                                if (section && section.key === 'methodology') {
+                                    if (!Array.isArray(section.blocks)) {
+                                        section.blocks = [];
+                                    }
+                                }
                         }
                     });
                 },
-                
+
                 init() {
                     console.log('Initializing journal editor...');
+                    console.log('Initial sections count:', this.sections.length);
+                    console.log('Initial journal ID:', this.journalId);
                     
-                    // Initialize sections
+                    // Clean up any old shared localStorage data (security fix)
+                    this.cleanupOldLocalStorage();
+                    
                     this.initSections();
-                    
-                    // Load existing data if editing
-                    @if(isset($existing_data))
-                        this.loadExistingData({!! json_encode($existing_data, JSON_HEX_TAG|JSON_HEX_AMP|JSON_HEX_APOS|JSON_HEX_QUOT) !!});
-                    @endif
-                    
-                    // Setup file upload listeners
-                    this.setupFileUploads();
-                    
-                    // Auto-save when idle
-                    this.setupAutoSave();
-                    
-                    console.log('Editor initialized with journal ID:', this.journalId);
+
+                    // Load from localStorage first (user-specific)
+                    this.loadFromLocalStorage();
+
+                    // Load existing data if editing (server-side data)
+                    if (typeof window.__existingData !== 'undefined') {
+                        console.log('Loading existing data:', window.__existingData);
+                        this.loadExistingData(window.__existingData);
+                    }
+
+                    // Load figures for this journal
+                    if (this.journalId) {
+                        this.loadFigures();
+                    }
+                },
+
+                selectedFigureId: null,
+                figureCaptionDraft: '',
+
+                async loadFigures() {
+                    try {
+                        const url = '{{ route('api.upload.figures.list') }}' + '?journal_id=' + encodeURIComponent(this.journalId);
+                        const res = await fetch(url, {
+                            method: 'GET',
+                            headers: {
+                                'Accept': 'application/json',
+                                'X-CSRF-TOKEN': getCsrfToken(),
+                            },
+                        });
+                        const data = await res.json().catch(() => null);
+                        if (!res.ok || !data || !data.success) {
+                            return;
+                        }
+                        if (!Array.isArray(this.sections[4].figures)) {
+                            this.sections[4].figures = [];
+                        }
+                        this.sections[4].figures = data.figures || [];
+                    } catch (e) {
+                        console.error('Failed to load figures', e);
+                    }
+                },
+
+                openFigureFilePicker() {
+                    const el = document.getElementById('figure-upload-input');
+                    if (el) el.click();
+                },
+
+                async handleFigureFileInput(evt) {
+                    const input = evt && evt.target ? evt.target : null;
+                    const files = input && input.files ? Array.from(input.files) : [];
+                    if (!files.length) return;
+                    await this.uploadFigures(files);
+                    if (input) input.value = '';
+                },
+
+                async uploadFigures(files) {
+                    if (!this.journalId) {
+                        alert('Please save the journal first before uploading figures.');
+                        return;
+                    }
+
+                    for (const file of files) {
+                        try {
+                            const formData = new FormData();
+                            formData.append('file', file);
+                            formData.append('journal_id', String(this.journalId));
+
+                            const res = await fetch('{{ route('api.upload.figure') }}', {
+                                method: 'POST',
+                                headers: {
+                                    'X-CSRF-TOKEN': getCsrfToken(),
+                                    'Accept': 'application/json',
+                                },
+                                body: formData,
+                            });
+
+                            const data = await res.json().catch(() => null);
+                            if (!res.ok || !data || !data.success) {
+                                const msg = (data && (data.message || (data.errors && JSON.stringify(data.errors)))) || 'Failed to upload figure';
+                                alert(msg);
+                                continue;
+                            }
+
+                            if (!Array.isArray(this.sections[4].figures)) {
+                                this.sections[4].figures = [];
+                            }
+                            this.sections[4].figures.push(data.figure);
+                        } catch (e) {
+                            console.error('Failed to upload figure', e);
+                            alert('Failed to upload figure');
+                        }
+                    }
+                },
+
+                selectFigureForCaption(id) {
+                    this.selectedFigureId = id;
+                    const fig = (this.sections[4].figures || []).find(f => f.id === id);
+                    this.figureCaptionDraft = fig ? (fig.caption || '') : '';
+                },
+
+                clearSelectedFigure() {
+                    this.selectedFigureId = null;
+                    this.figureCaptionDraft = '';
+                },
+
+                async saveSelectedFigureCaption() {
+                    if (!this.selectedFigureId) return;
+                    try {
+                        const res = await fetch('{{ route('api.upload.figure.update') }}', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRF-TOKEN': getCsrfToken(),
+                                'Accept': 'application/json',
+                            },
+                            body: JSON.stringify({
+                                id: this.selectedFigureId,
+                                caption: this.figureCaptionDraft,
+                            }),
+                        });
+
+                        const data = await res.json().catch(() => null);
+                        if (!res.ok || !data || !data.success) {
+                            const msg = (data && (data.message || (data.errors && JSON.stringify(data.errors)))) || 'Failed to update caption';
+                            alert(msg);
+                            return;
+                        }
+
+                        const idx = (this.sections[4].figures || []).findIndex(f => f.id === this.selectedFigureId);
+                        if (idx !== -1) {
+                            this.sections[4].figures[idx].caption = this.figureCaptionDraft;
+                        }
+                    } catch (e) {
+                        console.error('Failed to update caption', e);
+                        alert('Failed to update caption');
+                    }
+                },
+
+                async deleteFigure(id) {
+                    if (!confirm('Delete this figure?')) return;
+                    try {
+                        const res = await fetch('{{ route('api.upload.figure.delete') }}', {
+                            method: 'DELETE',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRF-TOKEN': getCsrfToken(),
+                                'Accept': 'application/json',
+                            },
+                            body: JSON.stringify({ id }),
+                        });
+                        const data = await res.json().catch(() => null);
+                        if (!res.ok || !data || !data.success) {
+                            const msg = (data && (data.message || (data.errors && JSON.stringify(data.errors)))) || 'Failed to delete figure';
+                            alert(msg);
+                            return;
+                        }
+                        this.sections[4].figures = (this.sections[4].figures || []).filter(f => f.id !== id);
+                        if (this.selectedFigureId === id) {
+                            this.clearSelectedFigure();
+                        }
+                    } catch (e) {
+                        console.error('Failed to delete figure', e);
+                        alert('Failed to delete figure');
+                    }
+                },
+
+                async persistFigureOrder() {
+                    try {
+                        const orderedIds = (this.sections[4].figures || []).map(f => f.id);
+                        if (!orderedIds.length) return;
+                        const res = await fetch('{{ route('api.upload.figures.reorder') }}', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRF-TOKEN': getCsrfToken(),
+                                'Accept': 'application/json',
+                            },
+                            body: JSON.stringify({
+                                journal_id: this.journalId,
+                                ordered_ids: orderedIds,
+                            }),
+                        });
+                        const data = await res.json().catch(() => null);
+                        if (!res.ok || !data || !data.success) {
+                            return;
+                        }
+                    } catch (e) {
+                        console.error('Failed to persist figure order', e);
+                    }
+                },
+
+                async moveFigureUp(index) {
+                    if (index <= 0) return;
+                    const arr = this.sections[4].figures || [];
+                    const tmp = arr[index - 1];
+                    arr[index - 1] = arr[index];
+                    arr[index] = tmp;
+                    this.sections[4].figures = arr;
+                    await this.persistFigureOrder();
+                },
+
+                async moveFigureDown(index) {
+                    const arr = this.sections[4].figures || [];
+                    if (index >= arr.length - 1) return;
+                    const tmp = arr[index + 1];
+                    arr[index + 1] = arr[index];
+                    arr[index] = tmp;
+                    this.sections[4].figures = arr;
+                    await this.persistFigureOrder();
                 },
                 
-                // Load existing journal data
+                // Clean up old shared localStorage data for security
+                cleanupOldLocalStorage() {
+                    try {
+                        const userId = window.currentUser?.email || 'anonymous';
+                        
+                        // Remove old shared keys if they exist
+                        const oldKeys = ['journal_draft', 'ai_preview'];
+                        oldKeys.forEach(key => {
+                            if (localStorage.getItem(key)) {
+                                console.warn('Removing old shared localStorage key:', key);
+                                localStorage.removeItem(key);
+                            }
+                        });
+                        
+                        // Also clear any stale user-specific data older than 24 hours
+                        const allKeys = Object.keys(localStorage);
+                        allKeys.forEach(key => {
+                            if (key.startsWith('journal_draft_') || key.startsWith('ai_preview_')) {
+                                try {
+                                    const data = JSON.parse(localStorage.getItem(key));
+                                    if (data.timestamp) {
+                                        const savedTime = new Date(data.timestamp);
+                                        const now = new Date();
+                                        const hoursDiff = (now - savedTime) / (1000 * 60 * 60);
+                                        
+                                        // Clear if older than 24 hours or belongs to different user
+                                        if (hoursDiff > 24 || (data.userId && data.userId !== userId)) {
+                                            console.warn('Removing stale localStorage key:', key);
+                                            localStorage.removeItem(key);
+                                        }
+                                    }
+                                } catch (e) {
+                                    // Invalid JSON, remove it
+                                    console.warn('Removing invalid localStorage key:', key);
+                                    localStorage.removeItem(key);
+                                }
+                            }
+                        });
+                    } catch (e) {
+                        console.error('Failed to cleanup old localStorage:', e);
+                    }
+                },
+                
+                // Watch for changes and auto-save
+                watch: {
+                    sections: {
+                        handler() {
+                            this.debounceSave();
+                        },
+                        deep: true
+                    }
+                },
+
                 loadExistingData(data) {
                     Object.keys(data).forEach(key => {
+                        if (key === 'methodology_blocks') {
+                            const methodologyIndex = this.sections.findIndex(s => s.key === 'methodology');
+                            if (methodologyIndex !== -1) {
+                                this.sections[methodologyIndex].blocks = Array.isArray(data[key]) ? data[key] : [];
+                            }
+                            return;
+                        }
+
                         const sectionIndex = this.sections.findIndex(s => s.key === key);
                         if (sectionIndex !== -1) {
                             if (key === 'authors' && Array.isArray(data[key])) {
                                 this.sections[sectionIndex].authors = data[key];
                             } else {
-                                this.sections[sectionIndex].content = data[key] || '';
+                                // Ensure content is always a string
+                                const content = data[key] || '';
+                                this.sections[sectionIndex].content = typeof content === 'string' ? content : String(content);
                             }
                         }
                     });
                 },
-                
-                // Setup auto-save on idle
-                setupAutoSave() {
-                    let saveTimeout = null;
-                    
-                    // Auto-save when user stops typing for 2 seconds
-                    this.$watch('sections', () => {
-                        if (saveTimeout) clearTimeout(saveTimeout);
-                        if (this.journalId) {
-                            saveTimeout = setTimeout(() => {
-                                this.saveJournal(true); // silent save
-                            }, 2000);
-                        }
-                    }, { deep: true });
+
+                addMethodologyBlock() {
+                    const idx = this.sections.findIndex(s => s.key === 'methodology');
+                    if (idx === -1) return;
+                    if (!Array.isArray(this.sections[idx].blocks)) this.sections[idx].blocks = [];
+                    this.sections[idx].blocks.push({ title: '', content: '' });
+                    this.debounceSave();
                 },
-                
-                // ====================
-                // SECTION MANAGEMENT
-                // ====================
-                
+
+                removeMethodologyBlock(blockIndex) {
+                    const idx = this.sections.findIndex(s => s.key === 'methodology');
+                    if (idx === -1) return;
+                    if (!Array.isArray(this.sections[idx].blocks)) this.sections[idx].blocks = [];
+                    this.sections[idx].blocks.splice(blockIndex, 1);
+                    this.debounceSave();
+                },
+
                 switchSection(index) {
                     this.activeSection = index;
-                    this.scrollToTop();
                 },
-                
-                nextSection() {
-                    if (this.activeSection < this.sections.length - 1) {
-                        this.isNavigating = true;
-                        this.activeSection++;
-                        this.scrollToTop();
-                        setTimeout(() => this.isNavigating = false, 300);
+
+                isSectionComplete(index) {
+                    const section = this.sections[index];
+                    if (!section) return false;
+                    
+                    // Check content-based sections (including Area of Study and Methodology)
+                    if ([0, 2, 3, 4, 5, 6, 7, 8].includes(index)) {
+                        return section.content && section.content.trim().length > 0;
                     }
+                    if (index === 1 && section.authors) {
+                        return section.authors.length > 0 && section.authors.every(a => a.name && a.affiliation);
+                    }
+                    return false;
                 },
-                
+
                 previousSection() {
                     if (this.activeSection > 0) {
-                        this.isNavigating = true;
                         this.activeSection--;
-                        this.scrollToTop();
-                        setTimeout(() => this.isNavigating = false, 300);
                     }
                 },
-                
-                scrollToTop() {
-                    window.scrollTo({ top: 0, behavior: 'smooth' });
+
+                nextSection() {
+                    if (this.activeSection < this.sections.length - 1) {
+                        this.activeSection++;
+                    }
                 },
-                
-                // ====================
-                // AUTHORS MANAGEMENT
-                // ====================
-                
+
                 addAuthor() {
                     const newAuthor = {
                         name: '',
@@ -838,876 +1101,602 @@
                         email: '',
                         corresponding: false
                     };
-                    
-                    // If no authors yet, set as corresponding
-                    if (this.sections[1].authors.length === 0) {
-                        newAuthor.corresponding = true;
-                    }
-                    
                     this.sections[1].authors.push(newAuthor);
-                    this.debounceSave();
                 },
-                
+
                 removeAuthor(index) {
-                    if (this.sections[1].authors.length <= 1) return;
-                    
-                    const wasCorresponding = this.sections[1].authors[index].corresponding;
-                    this.sections[1].authors.splice(index, 1);
-                    
-                    // If we removed the corresponding author, set first as corresponding
-                    if (wasCorresponding && this.sections[1].authors.length > 0) {
-                        this.sections[1].authors[0].corresponding = true;
-                    }
-                    
-                    this.debounceSave();
-                },
-                
-                updateCorrespondingAuthor(selectedIndex) {
-                    this.sections[1].authors.forEach((author, index) => {
-                        author.corresponding = (index === selectedIndex);
-                    });
-                    this.debounceSave();
-                },
-                
-                // ====================
-                // FILE MANAGEMENT
-                // ====================
-                
-                setupFileUploads() {
-                    // Annex upload
-                    const annexInput = document.getElementById('annex-upload');
-                    if (annexInput) {
-                        annexInput.addEventListener('change', (e) => {
-                            Array.from(e.target.files).forEach(file => 
-                                this.uploadFile(file, 'annex')
-                            );
-                        });
-                    }
-                    
-                    // Figure upload
-                    const figureInput = document.getElementById('figure-upload');
-                    if (figureInput) {
-                        figureInput.addEventListener('change', (e) => {
-                            Array.from(e.target.files).forEach(file => 
-                                this.uploadFile(file, 'figure')
-                            );
-                        });
+                    if (this.sections[1].authors.length > 1) {
+                        this.sections[1].authors.splice(index, 1);
                     }
                 },
-                
-                triggerFileUpload(type) {
-                    const inputId = type === 'annex' ? 'annex-upload' : 'figure-upload';
-                    document.getElementById(inputId).click();
-                },
-                
-                handleFileDrop(event, type) {
-                    event.preventDefault();
-                    this.dragOver = false;
-                    
-                    const files = Array.from(event.dataTransfer.files);
-                    files.forEach(file => this.uploadFile(file, type));
-                },
-                
-                async uploadFile(file, type) {
-                    // Validate file size
-                    const maxSize = type === 'annex' ? 10 * 1024 * 1024 : 5 * 1024 * 1024;
-                    if (file.size > maxSize) {
-                        alert(`File too large. Maximum size for ${type}s is ${type === 'annex' ? '10MB' : '5MB'}.`);
-                        return;
-                    }
-                    
-                    // Validate file types
-                    if (type === 'figure') {
-                        const validImageTypes = ['image/jpeg', 'image/png', 'image/svg+xml', 'image/gif'];
-                        if (!validImageTypes.includes(file.type)) {
-                            alert('Please upload only image files (JPG, PNG, SVG, GIF).');
-                            return;
-                        }
-                    }
-                    
-                    const formData = new FormData();
-                    formData.append('file', file);
-                    formData.append('type', type);
-                    formData.append('journal_id', this.journalId || 'new');
-                    
-                    this.saveStatus = `Uploading ${type}...`;
-                    
-                    try {
-                        const response = await fetch('/api/upload/file', {
-                            method: 'POST',
-                            headers: {
-                                'X-CSRF-TOKEN': getCsrfToken(),
-                            },
-                            body: formData
-                        });
-                        
-                        const data = await response.json();
-                        
-                        if (data.success) {
-                            if (type === 'annex') {
-                                if (!this.sections[10].files) this.sections[10].files = [];
-                                this.sections[10].files.push({
-                                    name: data.file.original_name,
-                                    url: data.file.url,
-                                    size: data.file.size,
-                                    type: data.file.type
-                                });
-                            } else if (type === 'figure') {
-                                if (!this.sections[11].figures) this.sections[11].figures = [];
-                                this.sections[11].figures.push({
-                                    name: data.file.original_name,
-                                    url: data.file.url,
-                                    caption: '',
-                                    source: '',
-                                    size: data.file.size,
-                                    type: data.file.type,
-                                    file: file // Keep reference for preview
-                                });
-                            }
-                            
-                            this.saveStatus = 'Saved';
-                            this.debounceSave();
-                        } else {
-                            throw new Error(data.message || 'Upload failed');
-                        }
-                    } catch (error) {
-                        this.saveStatus = 'Error';
-                        alert(`Upload error: ${error.message}`);
-                    }
-                },
-                
-                removeFile(sectionIndex, fileIndex) {
-                    if (this.sections[sectionIndex].files && 
-                        this.sections[sectionIndex].files[fileIndex]) {
-                        this.sections[sectionIndex].files.splice(fileIndex, 1);
-                        this.debounceSave();
-                    }
-                },
-                
-                removeFigure(figureIndex) {
-                    if (this.sections[11].figures && 
-                        this.sections[11].figures[figureIndex]) {
-                        this.sections[11].figures.splice(figureIndex, 1);
-                        this.debounceSave();
-                    }
-                },
-                
-                // ====================
-                // TEXT UTILITIES
-                // ====================
-                
+
                 getTextareaRows(sectionIndex) {
                     const rowMap = {
-                        0: 2,   // Research Topic
-                        2: 8,   // Abstract
-                        3: 12,  // Introduction
-                        4: 4,   // Area of Study
-                        5: 6,   // Additional Notes
-                        6: 8,   // Materials & Methods
-                        7: 12,  // Results & Discussion
-                        8: 6,   // Conclusion
-                        9: 12,  // References
+                        2: 4,
+                        3: 8,
+                        4: 6,
+                        5: 6,
+                        6: 6,
+                        7: 10,
+                        8: 4,
+                        9: 6
                     };
                     return rowMap[sectionIndex] || 6;
                 },
-                
-                getWordCount(text) {
-                    if (!text || !text.trim()) return 0;
-                    return text.trim().split(/\s+/).length;
-                },
-                
-                getWordCountClass(sectionIndex, content) {
-                    const wordCount = this.getWordCount(content);
-                    const thresholds = {
-                        2: { min: 150, max: 250 }, // Abstract
-                        3: { min: 300, max: 500 }, // Introduction
-                        6: { min: 200, max: 400 }, // Materials & Methods
-                        7: { min: 400, max: 600 }, // Results & Discussion
-                        8: { min: 150, max: 250 }, // Conclusion
-                    };
-                    
-                    if (thresholds[sectionIndex]) {
-                        if (wordCount === 0) return 'text-gray-600';
-                        if (wordCount < thresholds[sectionIndex].min) return 'text-yellow-600';
-                        if (wordCount > thresholds[sectionIndex].max) return 'text-red-600';
-                        return 'text-green-600';
-                    }
-                    return 'text-gray-600';
-                },
-                
-                formatFileSize(bytes) {
-                    if (bytes === 0) return '0 Bytes';
-                    const k = 1024;
-                    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-                    const i = Math.floor(Math.log(bytes) / Math.log(k));
-                    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-                },
-                
-                // ====================
-                // COMPLETION TRACKING
-                // ====================
-                
-                get totalWordCount() {
-                    let count = 0;
-                    this.sections.forEach(section => {
-                        if (section.content) {
-                            count += this.getWordCount(section.content);
-                        }
-                        if (section.authors) {
-                            section.authors.forEach(author => {
-                                if (author.name) count += this.getWordCount(author.name);
-                                if (author.affiliation) count += this.getWordCount(author.affiliation);
-                            });
-                        }
-                    });
-                    return count;
-                },
-                
-                get humanWordCount() {
-                    // For now, assume all content is human-written
-                    // In a real app, you'd track which content was AI-generated
-                    return this.totalWordCount;
-                },
-                
-                get aiWordCount() {
-                    // This would come from your database
-                    return 0;
-                },
-                
-                get aiPercentage() {
-                    if (this.totalWordCount === 0) return 0;
-                    return Math.round((this.aiWordCount / this.totalWordCount) * 100);
-                },
-                
-                get completedSections() {
-                    let completed = 0;
-                    this.sections.forEach((section, index) => {
-                        if (this.isSectionComplete(index)) {
-                            completed++;
-                        }
-                    });
-                    return completed;
-                },
-                
-                get completionPercentage() {
-                    const total = this.sections.length;
-                    return Math.round((this.completedSections / total) * 100);
-                },
-                
-                isSectionComplete(index) {
-                    const section = this.sections[index];
-                    
-                    switch(index) {
-                        case 0: // Research Topic
-                            return section.content && section.content.trim().length >= 5;
-                            
-                        case 1: // Authors
-                            return section.authors && section.authors.length > 0 && 
-                                   section.authors.some(author => 
-                                       author.name && author.name.trim() && 
-                                       author.affiliation && author.affiliation.trim()
-                                   );
-                            
-                        case 2: // Abstract
-                        case 3: // Introduction
-                        case 6: // Methodology
-                        case 7: // Results & Discussion
-                        case 8: // Conclusion
-                            return section.content && section.content.trim().length >= 50;
-                            
-                        case 4: // Area of Study
-                        case 5: // Additional Notes
-                        case 9: // References
-                            return true; // Optional sections
-                            
-                        case 10: // Annexes
-                        case 11: // Maps & Figures
-                            return true; // File sections are optional
-                            
-                        default:
-                            return false;
-                    }
-                },
-                
-                get canGenerateAI() {
-                    // Check if required sections are complete
-                    const requiredSections = [0, 1, 2, 3, 6, 7, 8];
-                    return requiredSections.every(index => this.isSectionComplete(index));
-                },
-                
-                get canEnhanceSection() {
-                    const section = this.sections[this.activeSection];
-                    return section.content && section.content.trim().length >= 20;
-                },
-                
-                // ====================
-                // SAVE OPERATIONS
-                // ====================
-                
+
                 debounceSave() {
-                    if (this.saveDebounce) clearTimeout(this.saveDebounce);
-                    this.saveDebounce = setTimeout(() => {
-                        if (this.journalId) {
-                            this.saveJournal(true); // silent save
-                        }
+                    clearTimeout(this.saveTimeout);
+                    this.saveTimeout = setTimeout(() => {
+                        this.saveJournal(true);
                     }, 1000);
                 },
-                
-                async saveJournal(silent = false) {
-                    if (this.isSaving) return false;
+
+                saveJournal(silent = false) {
+                    if (!silent) {
+                        this.isSaving = true;
+                        this.saveStatus = 'Saving...';
+                    }
                     
-                    this.isSaving = true;
-                    if (!silent) this.saveStatus = 'Saving...';
+                    // Save to localStorage first
+                    this.saveToLocalStorage();
                     
-                    try {
-                        // Prepare sections data
-                        const sectionsData = this.prepareSectionsData();
-                        
-                        const response = await fetch('/api/journal/save', {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                                'X-CSRF-TOKEN': getCsrfToken()
-                            },
-                            body: JSON.stringify({
-                                title: this.sections[0].content || 'Untitled Journal',
-                                sections: sectionsData,
-                                journal_id: this.journalId || null
-                            })
-                        });
-                        
-                        const data = await response.json();
-                        
+                    const journalData = {
+                        title: this.sections[0]?.content || 'Untitled Journal',
+                        sections: this.sections.map((section, index) => {
+                            if (index === 1) { // Authors section
+                                return {
+                                    title: section.title,
+                                    key: section.key,
+                                    authors: section.authors || []
+                                };
+                            }
+                            return {
+                                title: section.title,
+                                key: section.key,
+                                content: section.content || '',
+                                blocks: section.key === 'methodology' ? (section.blocks || []) : undefined
+                            };
+                        })
+                    };
+                    
+                    fetch('/api/journal/save', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': getCsrfToken()
+                        },
+                        body: JSON.stringify({
+                            journal_id: this.journalId,
+                            ...journalData
+                        })
+                    })
+                    .then(response => response.json())
+                    .then(data => {
                         if (data.success) {
                             this.journalId = data.journal.id;
                             this.saveStatus = 'Saved';
                             if (!silent) {
-                                this.showNotification('Journal saved successfully', 'success');
+                                console.log('Journal saved successfully');
                             }
-                            return true;
                         } else {
-                            throw new Error(data.message || 'Failed to save journal');
+                            throw new Error(data.message || 'Save failed');
                         }
-                    } catch (error) {
-                        console.error('Save error:', error);
+                    })
+                    .catch(error => {
                         this.saveStatus = 'Error';
+                        console.error('Save error:', error);
                         if (!silent) {
-                            this.showNotification('Failed to save: ' + error.message, 'error');
+                            alert('Failed to save journal. Please try again.');
                         }
-                        return false;
-                    } finally {
-                        this.isSaving = false;
-                    }
-                },
-                
-                prepareSectionsData() {
-                    return this.sections.map((section, index) => {
-                        if (index === 1) {
-                            // Authors section
-                            return section.authors;
-                        } else if ([10, 11].includes(index)) {
-                            // File sections - skip for now (handled separately)
-                            return { content: '' };
-                        } else {
-                            // Text sections
-                            return {
-                                content: section.content || ''
-                            };
+                    })
+                    .finally(() => {
+                        if (!silent) {
+                            this.isSaving = false;
                         }
                     });
                 },
                 
-                // ====================
-                // AI OPERATIONS
-                // ====================
-                
-                async enhanceWithAI() {
-                    if (!this.canEnhanceSection || this.isEnhancing) return;
+                saveToLocalStorage() {
+                    // Make localStorage user-specific by including user ID
+                    const userId = window.currentUser?.email || 'anonymous';
+                    const storageKey = `journal_draft_${userId}`;
                     
-                    this.isEnhancing = true;
-                    const section = this.sections[this.activeSection];
-                    const sectionTitles = [
-                        'Research Topic', 'Authors', 'Abstract', 'Introduction',
-                        'Area of Study', 'Additional Notes', 'Methodology',
-                        'Results & Discussion', 'Conclusion', 'References'
-                    ];
-                    
-                    try {
-                        // Show enhancement modal
-                        const modal = document.getElementById('enhance-modal');
-                        modal.classList.remove('hidden');
-                        
-                        // Reset progress
-                        document.getElementById('enhance-progress-bar').style.width = '0%';
-                        document.getElementById('enhance-progress-percent').textContent = '0%';
-                        document.getElementById('enhanced-content').innerHTML = '<div class="text-center py-8 text-gray-400"><i class="fas fa-robot text-3xl mb-3 animate-pulse"></i><p>AI is enhancing your content...</p></div>';
-                        document.getElementById('apply-enhancement').disabled = true;
-                        
-                        // Determine enhancement type based on section
-                        let enhancementType = 'enhance';
-                        if (this.activeSection === 2) enhancementType = 'abstract';
-                        if (this.activeSection === 9) enhancementType = 'references';
-                        if (this.activeSection === 8) enhancementType = 'conclusion';
-                        
-                        // Start streaming enhancement
-                        await this.streamSectionEnhancement(
-                            section.content,
-                            enhancementType,
-                            document.getElementById('enhanced-content'),
-                            document.getElementById('enhance-progress-bar'),
-                            document.getElementById('enhance-progress-percent'),
-                            document.getElementById('enhance-status')
-                        );
-                        
-                        document.getElementById('apply-enhancement').disabled = false;
-                        
-                    } catch (error) {
-                        console.error('Enhancement error:', error);
-                        this.showNotification('AI enhancement failed: ' + error.message, 'error');
-                        document.getElementById('enhance-modal').classList.add('hidden');
-                    } finally {
-                        this.isEnhancing = false;
-                    }
+                    const data = {
+                        journalId: this.journalId,
+                        sections: this.sections,
+                        timestamp: new Date().toISOString(),
+                        userId: userId
+                    };
+                    localStorage.setItem(storageKey, JSON.stringify(data));
                 },
                 
-                async streamSectionEnhancement(content, type, outputElement, progressBar, progressPercent, statusElement) {
-                    return new Promise((resolve, reject) => {
-                        // Abort any existing stream
-                        if (enhanceStreamController) {
-                            enhanceStreamController.abort();
-                        }
-                        
-                        enhanceStreamController = new AbortController();
-                        let fullContent = '';
-                        let chunkCount = 0;
-                        
-                        fetch('/api/ai/enhance-section', {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                                'X-CSRF-TOKEN': getCsrfToken()
-                            },
-                            body: JSON.stringify({
-                                content: content,
-                                section_type: type,
-                                journal_id: this.journalId
-                            }),
-                            signal: enhanceStreamController.signal
-                        })
-                        .then(response => {
-                            const reader = response.body.getReader();
-                            const decoder = new TextDecoder();
+                loadFromLocalStorage() {
+                    // Only load data for the current user
+                    const userId = window.currentUser?.email || 'anonymous';
+                    const storageKey = `journal_draft_${userId}`;
+                    
+                    const saved = localStorage.getItem(storageKey);
+                    if (saved) {
+                        try {
+                            const data = JSON.parse(saved);
                             
-                            function readStream() {
-                                reader.read().then(({ done, value }) => {
-                                    if (done) {
-                                        if (statusElement) {
-                                            statusElement.textContent = 'Enhancement complete!';
-                                        }
-                                        if (progressBar) {
-                                            progressBar.style.width = '100%';
-                                        }
-                                        if (progressPercent) {
-                                            progressPercent.textContent = '100%';
-                                        }
-                                        enhanceStreamController = null;
-                                        resolve(fullContent);
-                                        return;
-                                    }
-                                    
-                                    const chunk = decoder.decode(value, { stream: true });
-                                    const lines = chunk.split('\n');
-                                    
-                                    lines.forEach(line => {
-                                        if (line.startsWith('data: ')) {
-                                            const data = line.substring(6);
-                                            
-                                            try {
-                                                const parsed = JSON.parse(data);
-                                                
-                                                if (parsed.chunk) {
-                                                    chunkCount++;
-                                                    fullContent += parsed.chunk;
-                                                    
-                                                    // Update output
-                                                    if (chunkCount === 1) {
-                                                        outputElement.innerHTML = '';
-                                                    }
-                                                    outputElement.innerHTML += parsed.chunk;
-                                                    outputElement.scrollTop = outputElement.scrollHeight;
-                                                    
-                                                    // Update progress
-                                                    if (progressBar && progressPercent) {
-                                                        const progress = Math.min((chunkCount / 50) * 100, 99);
-                                                        progressBar.style.width = `${progress}%`;
-                                                        progressPercent.textContent = `${Math.round(progress)}%`;
-                                                    }
-                                                }
-                                                
-                                                if (parsed.message && statusElement) {
-                                                    statusElement.textContent = parsed.message;
-                                                }
-                                                
-                                            } catch (e) {
-                                                console.error('Failed to parse SSE data:', e);
-                                            }
-                                        }
-                                    });
-                                    
-                                    readStream();
-                                }).catch(reject);
+                            // Verify the data belongs to current user
+                            if (data.userId !== userId) {
+                                console.warn('localStorage data belongs to different user, ignoring');
+                                return;
                             }
                             
-                            readStream();
-                        })
-                        .catch(reject);
-                    });
+                            // Only load if less than 24 hours old
+                            const savedTime = new Date(data.timestamp);
+                            const now = new Date();
+                            const hoursDiff = (now - savedTime) / (1000 * 60 * 60);
+                            
+                            if (hoursDiff < 24) {
+                                this.journalId = data.journalId;
+                                this.sections = data.sections;
+                                console.log('Loaded draft from localStorage for user:', userId);
+                            }
+                        } catch (e) {
+                            console.error('Failed to load from localStorage:', e);
+                        }
+                    }
                 },
                 
-                async generateAIDraft() {
-                    if (!this.canGenerateAI || this.isGeneratingAI) return;
+                getWordCount(text) {
+                    if (!text || typeof text !== 'string') return 0;
+                    return text.split(/\s+/).filter(word => word.length > 0).length;
+                },
+                
+                getWordCountClass(sectionIndex, content) {
+                    const wordCount = this.getWordCount(content);
+                    const recommendations = {
+                        2: { min: 150, max: 250 },  // Abstract
+                        3: { min: 300, max: 500 },  // Introduction
+                        4: { min: 50, max: 100 },   // Area of Study
+                        5: { min: 300, max: 600 },  // Methodology
+                        6: { min: 200, max: 400 },  // Results & Discussion
+                        7: { min: 400, max: 600 },  // Conclusion
+                        8: { min: 150, max: 250 }   // References
+                    };
                     
-                    // First save the journal
-                    const saved = await this.saveJournal();
-                    if (!saved) {
-                        this.showNotification('Please save the journal before generating AI draft.', 'error');
+                    const rec = recommendations[sectionIndex];
+                    if (!rec) return 'text-gray-600';
+                    
+                    if (wordCount < rec.min) return 'text-red-600';
+                    if (wordCount > rec.max) return 'text-yellow-600';
+                    return 'text-green-600';
+                },
+
+                closeAIModal() {
+                    const modal = document.getElementById('ai-modal');
+                    if (modal) {
+                        modal.classList.remove('flex');
+                        modal.classList.add('hidden');
+                        const preview = document.getElementById('journal-preview');
+                        if (preview) preview.innerHTML = '';
+                        const progressBar = document.getElementById('ai-progress-bar');
+                        if (progressBar) progressBar.style.width = '0%';
+                        const progressPercent = document.getElementById('ai-progress-percent');
+                        if (progressPercent) progressPercent.textContent = '0%';
+                        const postBtn = document.getElementById('post-for-review');
+                        if (postBtn) postBtn.disabled = true;
+                    }
+                },
+
+                generateAIDraft() {
+                    if (!this.canGenerateAI) {
+                        alert('Please complete required sections (Title, Abstract, Introduction, Methods, Results, Discussion) before generating AI draft.');
                         return;
                     }
                     
                     this.isGeneratingAI = true;
                     
-                    try {
-                        // Show AI modal
-                        this.showAIModal();
-                        
-                        // Prepare sections for AI
-                        const sectionsData = this.prepareAISectionsData();
-                        
-                        // Start AI streaming
-                        await this.streamAIJournal(sectionsData);
-                        
-                    } catch (error) {
-                        console.error('AI generation error:', error);
-                        this.showNotification('AI generation failed: ' + error.message, 'error');
-                        this.closeAIModal();
-                    } finally {
-                        this.isGeneratingAI = false;
-                    }
-                },
-
-                // Add these methods inside the journalEditor Alpine component:
-
-confirmSaveAIDraft() {
-    if (confirm('Are you ready to post this AI-generated journal for review? Querentia users will be able to provide feedback.')) {
-        this.saveAIDraft();
-    }
-},
-
-async saveAIDraft() {
-    const previewContent = document.getElementById('journal-preview').innerText;
-    
-    if (!this.journalId || !previewContent.trim()) {
-        this.showNotification('No AI content to save.', 'error');
-        return;
-    }
-    
-    const button = document.getElementById('save-ai-draft');
-    button.disabled = true;
-    button.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Posting...';
-    
-    try {
-        const response = await fetch('/api/journal/save-ai-draft', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': getCsrfToken()
-            },
-            body: JSON.stringify({
-                journal_id: this.journalId,
-                ai_content: previewContent,
-                provider: 'deepseek'
-            })
-        });
-        
-        const data = await response.json();
-        
-        if (data.success) {
-            this.showNotification('Journal posted for review successfully! Querentia users will now review it.', 'success');
-            this.closeAIModal();
-            
-            // Redirect to network home after delay
-            setTimeout(() => {
-                window.location.href = data.redirect_url || '/network';
-            }, 1500);
-            
-        } else {
-            throw new Error(data.message || 'Failed to save AI draft');
-        }
-    } catch (error) {
-        console.error('Save AI Draft Error:', error);
-        this.showNotification('Failed to post for review: ' + error.message, 'error');
-        button.disabled = false;
-        button.innerHTML = '<i class="fas fa-paper-plane mr-2"></i>Post for Review';
-    }
-},
-                
-                prepareAISectionsData() {
-                    const sectionsData = {};
+                    // Collect all section data as array, including methodology blocks
+                    const sectionsArray = [];
                     this.sections.forEach((section, index) => {
-                        if (index === 1 && section.authors) {
-                            // Format authors
-                            const authorsText = section.authors.map(author => {
-                                let text = `${author.name} (${author.affiliation})`;
-                                if (author.email) text += ` - ${author.email}`;
-                                if (author.corresponding) text += ' [Corresponding Author]';
-                                return text;
-                            }).join('\n');
-                            sectionsData[index] = {
+                        if (section.key === 'methodology' && Array.isArray(section.blocks)) {
+                            // Flatten methodology blocks into a single content string for AI
+                            const flattenedContent = section.blocks
+                                .map(block => {
+                                    const title = block.title ? `**${block.title}**\n` : '';
+                                    return title + (block.content || '');
+                                })
+                                .join('\n\n');
+                            sectionsArray.push({
                                 title: section.title,
-                                content: authorsText
-                            };
-                        } else if ([10, 11].includes(index)) {
-                            // File sections
-                            sectionsData[index] = {
-                                title: section.title,
-                                content: `[${section.files?.length || 0} ${index === 10 ? 'files' : 'images'} uploaded]`
-                            };
+                                content: flattenedContent
+                            });
                         } else {
-                            sectionsData[index] = {
+                            sectionsArray.push({
                                 title: section.title,
                                 content: section.content || ''
-                            };
+                            });
                         }
                     });
-                    return sectionsData;
-                },
-                
-async streamAIJournal(sectionsData) {
-    return new Promise((resolve, reject) => {
-        // Abort any existing stream
-        if (aiStreamController) {
-            aiStreamController.abort();
-        }
-        
-        // FIX: Build the correct URL based on whether we have journalId
-        let url = '/ai/stream';
-        if (this.journalId) {
-            url = `/ai/stream/${this.journalId}`;
-        }
-        
-        aiStreamController = new AbortController();
-        let fullContent = '';
-        let chunkCount = 0;
-        
-        // FIX: Use the correct URL
-        fetch(url, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': getCsrfToken()
-            },
-            body: JSON.stringify({
-                sections: sectionsData,
-                provider: 'deepseek'
-            }),
-            signal: aiStreamController.signal
-        })
-        .then(response => {
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-            
-            const reader = response.body.getReader();
-            const decoder = new TextDecoder();
-            
-            function readStream() {
-                reader.read().then(({ done, value }) => {
-                    if (done) {
-                        // Complete
-                        document.getElementById('ai-status').textContent = 'AI Generation Complete!';
-                        document.getElementById('ai-progress-bar').style.width = '100%';
-                        document.getElementById('ai-progress-percent').textContent = '100%';
-                        document.getElementById('save-ai-draft').disabled = false;
-                        aiStreamController = null;
-                        resolve(fullContent);
-                        return;
+                    
+                    // Debug: Log what we're sending to AI
+                    console.log('Sending sections to AI:', sectionsArray);
+                    console.log('Total sections with content:', sectionsArray.filter(s => s.content && s.content.trim().length > 0).length);
+                    
+                    // Show AI modal
+                    const modal = document.getElementById('ai-modal');
+                    if (modal) {
+                        modal.classList.remove('hidden');
+                        modal.classList.add('flex');
                     }
                     
-                    const chunk = decoder.decode(value, { stream: true });
-                    const lines = chunk.split('\n');
-                    
-                    lines.forEach(line => {
-                        if (line.startsWith('data: ')) {
-                            const data = line.substring(6);
-                            
-                            try {
-                                const parsed = JSON.parse(data);
-                                
-                                if (parsed.chunk) {
-                                    chunkCount++;
-                                    fullContent += parsed.chunk;
-                                    
-                                    // Update preview
-                                    const preview = document.getElementById('journal-preview');
-                                    if (chunkCount === 1) {
-                                        preview.innerHTML = '';
-                                    }
-                                    preview.innerHTML += parsed.chunk;
+                    // Initialize AI streaming using existing class
+                    if (window.QuerentiaAI) {
+                        window.QuerentiaAI.initStreaming({
+                            onStart: (data) => {
+                                console.log('AI generation started:', data);
+                                const status = document.getElementById('ai-status');
+                                if (status) status.textContent = data.message || 'Starting AI generation...';
+                            },
+                            onChunk: (content) => {
+                                const preview = document.getElementById('journal-preview');
+                                if (preview) {
+                                    preview.innerHTML += content;
                                     preview.scrollTop = preview.scrollHeight;
-                                    
-                                    // Update progress
-                                    const progress = Math.min((chunkCount / 100) * 100, 99);
-                                    document.getElementById('ai-progress-bar').style.width = `${progress}%`;
-                                    document.getElementById('ai-progress-percent').textContent = `${Math.round(progress)}%`;
                                 }
                                 
-                                if (parsed.message) {
-                                    document.getElementById('ai-status').textContent = parsed.message;
-                                }
+                                // persist preview so it survives refreshes (user-specific)
+                                try { 
+                                    const userId = window.currentUser?.email || 'anonymous';
+                                    const previewKey = `ai_preview_${userId}`;
+                                    localStorage.setItem(previewKey, (preview && preview.innerText) || ''); 
+                                } catch (e) { console.error('Failed to persist ai_preview', e); }
+
+                                // Update progress (rough estimate)
+                                const currentContent = preview.innerText;
+                                const progress = Math.min((currentContent.length / 5000) * 100, 99);
+                                const progressBar = document.getElementById('ai-progress-bar');
+                                const progressPercent = document.getElementById('ai-progress-percent');
+                                if (progressBar) progressBar.style.width = `${progress}%`;
+                                if (progressPercent) progressPercent.textContent = `${Math.round(progress)}%`;
+                            },
+                            onComplete: (data) => {
+                                console.log('AI generation complete:', data);
+                                this.isGeneratingAI = false;
+                                const status = document.getElementById('ai-status');
+                                if (status) status.textContent = 'Generation complete!';
                                 
-                            } catch (e) {
-                                console.error('Failed to parse SSE data:', e);
+                                const progressBar = document.getElementById('ai-progress-bar');
+                                const progressPercent = document.getElementById('ai-progress-percent');
+                                if (progressBar) progressBar.style.width = '100%';
+                                if (progressPercent) progressPercent.textContent = '100%';
+                                
+                                const postBtn = document.getElementById('post-for-review');
+                                if (postBtn) postBtn.disabled = false;
+
+                                // persist preview on completion (user-specific)
+                                const previewContent = document.getElementById('journal-preview')?.innerText || '';
+                                try { 
+                                    const userId = window.currentUser?.email || 'anonymous';
+                                    const previewKey = `ai_preview_${userId}`;
+                                    localStorage.setItem(previewKey, previewContent); 
+                                } catch (e) { console.error('Failed to persist ai_preview', e); }
+
+                                // Store journal ID for posting
+                                if (data.journal_id) {
+                                    this.journalId = data.journal_id;
+                                }
+
+                                // Trigger an automatic save of the AI draft (best-effort)
+                                try {
+                                    if (window.autosaveAIDraft) {
+                                        window.autosaveAIDraft(data, previewContent);
+                                    }
+                                } catch (e) { console.error('autosaveAIDraft error', e); }
+                            },
+                            onError: (message) => {
+                                try {
+                                    console.error('AI generation error:', message);
+                                    this.isGeneratingAI = false;
+                                    // Show a user-friendly alert if possible
+                                    if (typeof message === 'string' && message.length > 0) {
+                                        alert('AI generation failed: ' + message);
+                                    } else {
+                                        alert('AI generation failed. Please check logs.');
+                                    }
+                                } catch (err) {
+                                    console.error('Error in onError handler:', err);
+                                } finally {
+                                    // Ensure modal is closed to avoid stuck UI
+                                    try { this.closeAIModal(); } catch (e) { /* ignore */ }
+                                }
+                            }
+                        });
+                        
+                        // Start generation
+                        window.QuerentiaAI.generate(this.journalId, sectionsArray, 'deepseek');
+                    } else {
+                        console.error('QuerentiaAI not available');
+                        this.isGeneratingAI = false;
+                        alert('AI system not loaded. Please refresh the page.');
+                    }
+                },
+                }));
+            });
+        })();
+        })();
+        
+        // Autosave helper: attempt to save AI-generated preview as a draft
+        window.autosaveAIDraft = async function(data, previewContent) {
+            try {
+                let journalId = data && data.journal_id ? data.journal_id : (window.initialJournalId || null);
+                if (!journalId) {
+                    // Try to create a journal from initialSections if possible
+                    const sectionsPayload = {};
+                    const src = window.initialSections || [];
+                    src.forEach((s, idx) => {
+                        if (idx === 1) sectionsPayload[idx] = s.authors || [];
+                        else sectionsPayload[idx] = (s && s.content) || s || '';
+                    });
+                    const title = (src[0] && (src[0].content || src[0].title)) || 'Untitled Research';
+                    const saveResp = await fetch('/api/journal/save', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': window.csrfToken || document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                        },
+                        body: JSON.stringify({ title: title, sections: sectionsPayload })
+                    });
+
+                    // Accept both JSON and non-JSON responses for diagnostics
+                    let saveData = null;
+                    const ct = saveResp.headers.get('content-type') || '';
+                    if (ct.includes('application/json')) {
+                        saveData = await saveResp.json().catch(() => null);
+                    } else {
+                        const text = await saveResp.text().catch(() => null);
+                        console.warn('autosaveAIDraft: non-json response when creating journal', saveResp.status, text);
+                    }
+
+                    if (saveData && saveData.success && saveData.journal) {
+                        data = data || {};
+                        data.journal_id = saveData.journal.id;
+                        journalId = saveData.journal.id;
+                    } else {
+                        console.warn('autosaveAIDraft: unable to create journal automatically', saveResp, saveData);
+                    }
+                }
+
+                const finalJournalId = journalId;
+                if (!finalJournalId) return; // nothing to do
+
+                // Post AI draft
+                const resp = await fetch('/api/journal/save-ai-draft', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': window.csrfToken || document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                    },
+                    body: JSON.stringify({ journal_id: finalJournalId, ai_content: previewContent })
+                });
+
+                const contentType = resp.headers.get('content-type') || '';
+                let result = null;
+                if (contentType.includes('application/json')) {
+                    result = await resp.json().catch(() => null);
+                } else {
+                    const text = await resp.text().catch(() => null);
+                    console.warn('autosaveAIDraft: non-json response from save-ai-draft', resp.status, text);
+                }
+
+                if (resp.ok && result && result.success) {
+                    console.log('autosaveAIDraft: saved AI draft for journal', finalJournalId);
+                } else {
+                    console.warn('autosaveAIDraft: failed to save AI draft', resp, result);
+                }
+            } catch (e) {
+                console.error('autosaveAIDraft error', e);
+            }
+        };
+
+        // Global function for posting AI draft for review
+        function postForReview() {
+            let previewContent = document.getElementById('journal-preview').innerText;
+            const journalId = window.Alpine?.store?.('journalEditor')?.journalId || null;
+            
+            if (!previewContent.trim()) {
+                alert('No AI content to post');
+                return;
+            }
+
+            // If there is persisted preview from localStorage but previewContent is empty, restore it (user-specific)
+            try {
+                if (!previewContent.trim()) {
+                    const userId = window.currentUser?.email || 'anonymous';
+                    const previewKey = `ai_preview_${userId}`;
+                    const stored = localStorage.getItem(previewKey);
+                    if (stored) previewContent = stored;
+                }
+            } catch (e) { /* ignore */ }
+            
+            // First ensure we have a journal id; create journal if needed, then save AI draft and redirect
+                (async function() {
+                    try {
+                        let targetJournalId = journalId || window.initialJournalId || null;
+
+                        if (!targetJournalId) {
+                            // Attempt to create the journal from existing sections
+                            const sectionsPayload = {};
+                            const src = window.initialSections || [];
+                            src.forEach((s, idx) => {
+                                if (idx === 1) sectionsPayload[idx] = s.authors || [];
+                                else sectionsPayload[idx] = (s && s.content) || s || '';
+                            });
+                            const title = (src[0] && (src[0].content || src[0].title)) || 'Untitled Research';
+                            const saveResp = await fetch('/api/journal/save', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                    'X-CSRF-TOKEN': window.csrfToken || document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                                },
+                                body: JSON.stringify({ title: title, sections: sectionsPayload })
+                            });
+
+                            const ct = saveResp.headers.get('content-type') || '';
+                            let saveData = null;
+                            if (ct.includes('application/json')) {
+                                saveData = await saveResp.json().catch(() => null);
+                            } else {
+                                const text = await saveResp.text().catch(() => null);
+                                console.warn('postForReview: non-json response when creating journal', saveResp.status, text);
+                            }
+
+                            if (saveData && saveData.success && saveData.journal) {
+                                targetJournalId = saveData.journal.id;
+                            } else {
+                                alert('Failed to create journal before posting for review.');
+                                return;
                             }
                         }
-                    });
-                    
-                    readStream();
-                }).catch(reject);
-            }
-            
-            readStream();
-        })
-        .catch(reject);
-    });
-},
-                
-                showAIModal() {
-                    const modal = document.getElementById('ai-modal');
-                    modal.classList.remove('hidden');
-                    
-                    // Reset state
-                    document.getElementById('journal-preview').innerHTML = `
-                        <div class="text-center py-8 text-gray-400">
-                            <i class="fas fa-robot text-3xl mb-3 animate-pulse"></i>
-                            <p>AI is generating your journal content...</p>
-                        </div>
-                    `;
-                    document.getElementById('ai-progress-bar').style.width = '0%';
-                    document.getElementById('ai-progress-percent').textContent = '0%';
-                    document.getElementById('save-ai-draft').disabled = true;
-                    document.getElementById('ai-status').textContent = 'DeepSeek AI is writing your journal...';
-                },
-                
-                closeAIModal() {
-                    const modal = document.getElementById('ai-modal');
-                    modal.classList.add('hidden');
-                    
-                    // Abort any ongoing stream
-                    if (aiStreamController) {
-                        aiStreamController.abort();
-                        aiStreamController = null;
-                    }
-                },
-                
-                async saveAIDraft() {
-                    const previewContent = document.getElementById('journal-preview').innerText;
-                    
-                    if (!this.journalId || !previewContent.trim()) {
-                        this.showNotification('No AI content to save.', 'error');
-                        return;
-                    }
-                    
-                    const button = document.getElementById('save-ai-draft');
-                    button.disabled = true;
-                    button.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Saving...';
-                    
-                    try {
-                        const response = await fetch('/api/journal/save-ai-draft', {
+
+                        // Save AI draft
+                        const resp = await fetch('/api/journal/save-ai-draft', {
                             method: 'POST',
                             headers: {
                                 'Content-Type': 'application/json',
-                                'X-CSRF-TOKEN': getCsrfToken()
+                                'X-CSRF-TOKEN': window.csrfToken || document.querySelector('meta[name="csrf-token"]').getAttribute('content')
                             },
-                            body: JSON.stringify({
-                                journal_id: this.journalId,
-                                ai_content: previewContent
-                            })
+                            body: JSON.stringify({ journal_id: targetJournalId, ai_content: previewContent })
                         });
-                        
-                        const data = await response.json();
-                        
-                        if (data.success) {
-                            this.showNotification('AI draft saved successfully!', 'success');
-                            this.closeAIModal();
-                            
-                            // Redirect to preview after delay
-                            setTimeout(() => {
-                                window.location.href = `/journal/${data.journal.id}/preview`;
-                            }, 1000);
-                            
+
+                        const contentType = resp.headers.get('content-type') || '';
+                        let data = null;
+                        if (contentType.includes('application/json')) {
+                            data = await resp.json().catch(() => null);
                         } else {
-                            throw new Error(data.message || 'Failed to save AI draft');
+                            const text = await resp.text().catch(() => null);
+                            console.error('postForReview: non-json response from save-ai-draft', resp.status, text);
+                            alert('Failed to post for review: server returned an unexpected response. Check console/logs.');
+                            return;
+                        }
+
+                        if (resp.ok && data && data.success) {
+                            // Close modal if present
+                            const modal = document.getElementById('ai-modal');
+                            if (modal) {
+                                modal.classList.remove('flex');
+                                modal.classList.add('hidden');
+                            }
+                            // Redirect to server-provided URL if available, otherwise fallback to journal preview
+                            if (data.redirect_url) {
+                                window.location.href = data.redirect_url;
+                            } else if (data.journal && data.journal.id) {
+                                window.location.href = `/journal/${data.journal.id}/preview`;
+                            } else {
+                                window.location.href = '/network';
+                            }
+                        } else {
+                            const msg = (data && (data.message || (data.errors && JSON.stringify(data.errors)))) || 'Unknown error';
+                            alert('Failed to prepare journal for review: ' + msg);
                         }
                     } catch (error) {
-                        console.error('Save AI Draft Error:', error);
-                        this.showNotification('Failed to save AI draft: ' + error.message, 'error');
-                        button.disabled = false;
-                        button.innerHTML = '<i class="fas fa-save mr-2"></i>Save AI Draft';
+                        console.error('Post error:', error);
+                        alert('Failed to post for review: ' + (error && error.message ? error.message : 'Unknown error'));
                     }
-                },
-                
-                // ====================
-                // UTILITIES
-                // ====================
-                
-                showNotification(message, type = 'info') {
-                    // Create notification element
-                    const notification = document.createElement('div');
-                    notification.className = `fixed top-20 right-4 z-50 px-4 py-3 rounded-lg shadow-lg transition-all duration-300 transform translate-x-0 ${
-                        type === 'success' ? 'bg-green-100 text-green-800 border border-green-200' :
-                        type === 'error' ? 'bg-red-100 text-red-800 border border-red-200' :
-                        'bg-blue-100 text-blue-800 border border-blue-200'
-                    }`;
-                    
-                    notification.innerHTML = `
-                        <div class="flex items-center">
-                            <i class="fas ${
-                                type === 'success' ? 'fa-check-circle' :
-                                type === 'error' ? 'fa-exclamation-circle' :
-                                'fa-info-circle'
-                            } mr-2"></i>
-                            <span>${message}</span>
-                        </div>
-                    `;
-                    
-                    document.body.appendChild(notification);
-                    
-                    // Remove after 3 seconds
-                    setTimeout(() => {
-                        notification.style.transform = 'translateX(100%)';
-                        setTimeout(() => {
-                            if (notification.parentNode) {
-                                notification.parentNode.removeChild(notification);
-                            }
-                        }, 300);
-                    }, 3000);
-                }
-            }));
-        });
-        
-        
-        // Global functions for modals
-        function applyEnhancedContent() {
-            const enhancedContent = document.getElementById('enhanced-content').innerText;
-            const editor = document.querySelector('[x-data]').__x.$data;
-            
-            if (enhancedContent.trim()) {
-                editor.sections[editor.activeSection].content = enhancedContent;
-                editor.debounceSave();
-                editor.showNotification('Enhanced content applied successfully!', 'success');
+                })();
+        }
+
+        // Global function for previewing/editing after AI generation
+        function goToPreviewOrEdit() {
+            let previewContent = document.getElementById('journal-preview').innerText;
+            const journalId = window.Alpine?.store?.('journalEditor')?.journalId || null;
+
+            if (!previewContent.trim()) {
+                alert('No AI content to preview');
+                return;
             }
-            
-            document.getElementById('enhance-modal').classList.add('hidden');
+
+            // If there is persisted preview from localStorage but previewContent is empty, restore it (user-specific)
+            try {
+                if (!previewContent.trim()) {
+                    const userId = window.currentUser?.email || 'anonymous';
+                    const previewKey = `ai_preview_${userId}`;
+                    const stored = localStorage.getItem(previewKey);
+                    if (stored) previewContent = stored;
+                }
+            } catch (e) { /* ignore */ }
+
+            (async function() {
+                try {
+                    let targetJournalId = journalId || window.initialJournalId || null;
+
+                    if (!targetJournalId) {
+                        const sectionsPayload = {};
+                        const src = window.initialSections || [];
+                        src.forEach((s, idx) => {
+                            if (idx === 1) sectionsPayload[idx] = s.authors || [];
+                            else sectionsPayload[idx] = (s && s.content) || s || '';
+                        });
+                        const title = (src[0] && (src[0].content || src[0].title)) || 'Untitled Research';
+
+                        const saveResp = await fetch('/api/journal/save', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRF-TOKEN': window.csrfToken || document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                            },
+                            body: JSON.stringify({ title: title, sections: sectionsPayload })
+                        });
+
+                        const ct = saveResp.headers.get('content-type') || '';
+                        let saveData = null;
+                        if (ct.includes('application/json')) {
+                            saveData = await saveResp.json().catch(() => null);
+                        } else {
+                            const text = await saveResp.text().catch(() => null);
+                            console.warn('goToPreviewOrEdit: non-json response when creating journal', saveResp.status, text);
+                        }
+
+                        if (saveData && saveData.success && saveData.journal) {
+                            targetJournalId = saveData.journal.id;
+                        } else {
+                            alert('Failed to create journal before previewing.');
+                            return;
+                        }
+                    }
+
+                    // Save AI draft (so preview page has content)
+                    const resp = await fetch('/api/journal/save-ai-draft', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': window.csrfToken || document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                        },
+                        body: JSON.stringify({ journal_id: targetJournalId, ai_content: previewContent })
+                    });
+
+                    const contentType = resp.headers.get('content-type') || '';
+                    let data = null;
+                    if (contentType.includes('application/json')) {
+                        data = await resp.json().catch(() => null);
+                    } else {
+                        const text = await resp.text().catch(() => null);
+                        console.error('goToPreviewOrEdit: non-json response from save-ai-draft', resp.status, text);
+                        alert('Failed to save AI draft: server returned an unexpected response. Check console/logs.');
+                        return;
+                    }
+
+                    if (resp.ok && data && data.success) {
+                        const modal = document.getElementById('ai-modal');
+                        if (modal) {
+                            modal.classList.remove('flex');
+                            modal.classList.add('hidden');
+                        }
+                        window.location.href = `/journal/${targetJournalId}/preview`;
+                    } else {
+                        const msg = (data && (data.message || (data.errors && JSON.stringify(data.errors)))) || 'Unknown error';
+                        alert('Failed to prepare preview: ' + msg);
+                    }
+                } catch (error) {
+                    console.error('Preview error:', error);
+                    alert('Failed to open preview: ' + (error && error.message ? error.message : 'Unknown error'));
+                }
+            })();
         }
     </script>
 </body>

@@ -3,12 +3,7 @@
 @section('title', 'Querentia Network')
 
 @section('content')
-{{-- Tailwind CDN --}}
-    <script src="https://cdn.tailwindcss.com"></script>
-
-    {{-- Heroicons --}}
-    <script src="https://unpkg.com/@heroicons/vue@2"></script>
-<div class="space-y-6">
+<div x-data="networkComposer" x-init="init()" class="space-y-6">
     <!-- Create Post Card -->
     <div class="bg-white rounded-xl shadow p-6">
         <div class="flex items-center gap-3 mb-4">
@@ -20,18 +15,18 @@
                     {{ strtoupper(substr(auth()->user()->first_name, 0, 1) . substr(auth()->user()->last_name, 0, 1)) }}
                 </div>
             @endif
-            <button onclick="openCreatePostModal()"
+            <button @click="openCreatePostModal()"
                     class="flex-1 text-left p-3 border border-gray-300 rounded-full hover:bg-gray-50 text-gray-600">
                 Start a post, share a journal, or ask a question...
             </button>
         </div>
         <div class="flex justify-around border-t pt-4">
-            <button onclick="openCreatePostModal('journal')" 
+            <button @click="openCreatePostModal('journal')" 
                     class="flex items-center gap-2 text-gray-600 hover:text-blue-600">
                 <i class="fas fa-file-alt text-blue-500"></i>
                 <span>Journal</span>
             </button>
-            <button onclick="openCreatePostModal('discussion')" 
+            <button @click="openCreatePostModal('discussion')" 
                     class="flex items-center gap-2 text-gray-600 hover:text-green-600">
                 <i class="fas fa-comments text-green-500"></i>
                 <span>Discussion</span>
@@ -66,151 +61,311 @@
         </div>
     </div>
 
-    <!-- Recent Posts -->
-    <div class="bg-white rounded-xl shadow p-6">
-        <h2 class="font-semibold text-lg mb-4">Recent Activity</h2>
-        
-        <div class="space-y-6">
-            <!-- Sample Post -->
-            <div class="border rounded-lg p-4 hover:bg-gray-50 transition">
-                <div class="flex items-start gap-3">
-                    <div class="w-12 h-12 rounded-full bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center text-white font-bold">
-                        DJ
-                    </div>
-                    <div class="flex-1">
-                        <div class="flex justify-between items-start">
-                            <div>
-                                <h3 class="font-semibold">Dr. Sarah Johnson</h3>
-                                <p class="text-sm text-gray-500">Professor of Computer Science • 2 hours ago</p>
-                            </div>
-                            <button class="text-gray-400 hover:text-gray-600">
-                                <i class="fas fa-ellipsis-h"></i>
-                            </button>
-                        </div>
-                        <p class="mt-3 text-gray-700">
-                            Seeking peer review for our latest research on "AI-Assisted Academic Writing: Impact on Research Quality". 
-                            We're particularly interested in feedback from machine learning and education technology experts.
-                        </p>
-                        <div class="flex items-center gap-4 mt-4 text-sm text-gray-500">
-                            <button class="flex items-center gap-1 hover:text-blue-600">
-                                <i class="far fa-thumbs-up"></i>
-                                <span>24</span>
-                            </button>
-                            <button class="flex items-center gap-1 hover:text-green-600">
-                                <i class="far fa-comment"></i>
-                                <span>12</span>
-                            </button>
-                            <button class="flex items-center gap-1 hover:text-yellow-600">
-                                <i class="far fa-star"></i>
-                                <span>3 reviews</span>
-                            </button>
-                        </div>
-                    </div>
+    <!-- Posts Feed -->
+    <div class="space-y-6">
+        @if(isset($posts) && $posts->count())
+            @foreach($posts as $post)
+                <div class="bg-white rounded-xl shadow border hover:bg-gray-50 transition">
+                    @include('network.partials.post')
                 </div>
+            @endforeach
+            <div class="pt-2">
+                {{ $posts->links() }}
             </div>
-
-            <!-- Another Sample Post -->
-            <div class="border rounded-lg p-4 hover:bg-gray-50 transition">
-                <div class="flex items-start gap-3">
-                    <div class="w-12 h-12 rounded-full bg-gradient-to-br from-green-400 to-blue-500 flex items-center justify-center text-white font-bold">
-                        MW
-                    </div>
-                    <div class="flex-1">
-                        <div class="flex justify-between items-start">
-                            <div>
-                                <h3 class="font-semibold">Dr. Michael Wilson</h3>
-                                <p class="text-sm text-gray-500">Research Scientist • 4 hours ago</p>
-                            </div>
-                            <button class="text-gray-400 hover:text-gray-600">
-                                <i class="fas fa-ellipsis-h"></i>
-                            </button>
-                        </div>
-                        <p class="mt-3 text-gray-700">
-                            Just published our new paper on quantum computing applications in climate modeling. 
-                            The results show significant improvements in prediction accuracy. 
-                            Would love to hear thoughts from the community!
-                        </p>
-                        <div class="flex items-center gap-4 mt-4 text-sm text-gray-500">
-                            <button class="flex items-center gap-1 hover:text-blue-600">
-                                <i class="far fa-thumbs-up"></i>
-                                <span>42</span>
-                            </button>
-                            <button class="flex items-center gap-1 hover:text-green-600">
-                                <i class="far fa-comment"></i>
-                                <span>8</span>
-                            </button>
-                        </div>
-                    </div>
-                </div>
+        @else
+            <div class="bg-white rounded-xl shadow p-10 text-center text-gray-500">
+                No posts yet.
             </div>
-        </div>
+        @endif
     </div>
 
-    <!-- Trending Journals -->
-    <div class="bg-white rounded-xl shadow p-6">
-        <div class="flex justify-between items-center mb-4">
-            <h2 class="font-semibold text-lg">Trending Journals</h2>
-            <a href="{{ route('network.journals') }}" class="text-blue-600 text-sm hover:text-blue-800">
-                View all
-            </a>
-        </div>
-        
-        <div class="space-y-4">
-            <div class="border rounded-lg p-4 hover:bg-gray-50 transition cursor-pointer">
-                <div class="flex justify-between items-start">
-                    <div>
-                        <h3 class="font-semibold">Climate Change Impact on Coastal Cities</h3>
-                        <p class="text-sm text-gray-500 mt-1">Environmental Science</p>
-                        <div class="flex items-center gap-2 mt-2">
-                            <div class="flex text-yellow-400">
-                                <i class="fas fa-star"></i>
-                                <i class="fas fa-star"></i>
-                                <i class="fas fa-star"></i>
-                                <i class="fas fa-star"></i>
-                                <i class="fas fa-star-half-alt"></i>
-                            </div>
-                            <span class="text-sm font-bold">4.3</span>
-                            <span class="text-sm text-gray-500">(42 reviews)</span>
-                        </div>
-                    </div>
-                    <div class="text-right">
-                        <p class="text-sm text-gray-500">Dr. Sarah Johnson</p>
-                        <p class="text-xs text-gray-400">University of Cambridge</p>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="border rounded-lg p-4 hover:bg-gray-50 transition cursor-pointer">
-                <div class="flex justify-between items-start">
-                    <div>
-                        <h3 class="font-semibold">Quantum Computing Breakthrough</h3>
-                        <p class="text-sm text-gray-500 mt-1">Physics & Computer Science</p>
-                        <div class="flex items-center gap-2 mt-2">
-                            <div class="flex text-yellow-400">
-                                <i class="fas fa-star"></i>
-                                <i class="fas fa-star"></i>
-                                <i class="fas fa-star"></i>
-                                <i class="fas fa-star"></i>
-                                <i class="fas fa-star"></i>
-                            </div>
-                            <span class="text-sm font-bold">5.0</span>
-                            <span class="text-sm text-gray-500">(28 reviews)</span>
-                        </div>
-                    </div>
-                    <div class="text-right">
-                        <p class="text-sm text-gray-500">Dr. Michael Wilson</p>
-                        <p class="text-xs text-gray-400">MIT</p>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
+    @include('network.modals.create-post')
 </div>
 
 <script>
-function openCreatePostModal(type = 'discussion') {
-    // Implement modal opening logic
-    alert('Create post modal will open for: ' + type);
+const registerNetworkComposer = () => {
+    Alpine.data('networkComposer', () => ({
+        
+        showCreateModal: false,
+        postType: 'discussion',
+        visibility: 'public',
+        submitting: false,
+
+        // Journal-related composer state
+        userJournals: [],
+        loadingJournals: false,
+        selectedJournalId: '',
+
+        requestReview: true,
+
+        // Journal post copy (title + description)
+        postTitle: '',
+        postDescription: '',
+        postContent: '',
+        generatingPostCopy: false,
+
+        setPostType(type) {
+            this.postType = type;
+            if (this.postType === 'journal' && this.userJournals.length === 0 && !this.loadingJournals) {
+                this.loadJournals();
+            }
+        },
+
+        init() {
+            const params = new URLSearchParams(window.location.search);
+            const shouldCompose = params.get('compose') === '1';
+            const type = params.get('type') || 'discussion';
+            const journalId = params.get('journal_id') || '';
+            const shouldAI = params.get('ai') === '1';
+
+            if (shouldCompose) {
+                this.openCreatePostModal(type, { journalId, ai: shouldAI });
+                const newUrl = window.location.pathname;
+                window.history.replaceState({}, document.title, newUrl);
+            }
+        },
+
+        openCreatePostModal(type = 'discussion', opts = {}) {
+            this.showCreateModal = true;
+            this.setPostType(type);
+
+            if (this.postType === 'journal') {
+                this.requestReview = true;
+                this.loadJournals().then(() => {
+                    if (opts.journalId) {
+                        this.selectedJournalId = String(opts.journalId);
+                        const j = this.userJournals.find(x => String(x.id) === String(opts.journalId));
+                        if (j && !this.postTitle) {
+                            this.postTitle = j.title || '';
+                        }
+                    }
+                }).then(() => {
+                    if (opts.ai && this.selectedJournalId) {
+                        this.generateAIPostCopy();
+                    }
+                });
+            }
+        },
+
+        async loadJournals() {
+            this.loadingJournals = true;
+            try {
+                const response = await fetch('/api/user/journals');
+                const data = await response.json();
+                if (data.success) {
+                    this.userJournals = data.journals || [];
+                }
+            } finally {
+                this.loadingJournals = false;
+            }
+        },
+        
+        getStatusBadge(status) {
+            switch (status) {
+                case 'published':
+                    return '<span class="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs font-medium"><i class="fas fa-check-circle mr-1"></i>Published</span>';
+                case 'under_review':
+                    return '<span class="px-2 py-1 bg-yellow-100 text-yellow-800 rounded-full text-xs font-medium"><i class="fas fa-clock mr-1"></i>Under Review</span>';
+                default:
+                    return '<span class="px-2 py-1 bg-gray-100 text-gray-800 rounded-full text-xs font-medium"><i class="fas fa-eye mr-1"></i>Draft</span>';
+            }
+        },
+        
+        getActionButton(journal) {
+            if (journal.status === 'under_review') {
+                return `
+                    <button onclick="publishJournal(${journal.id})" class="bg-green-600 text-white px-3 py-1 rounded text-sm hover:bg-green-700 transition">
+                        <i class="fas fa-rocket mr-1"></i>Publish
+                    </button>
+                `;
+            } else if (journal.status === 'draft') {
+                return `
+                    <a href="/journal/${journal.id}/edit" class="bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700 transition">
+                        <i class="fas fa-edit mr-1"></i>Edit
+                    </a>
+                `;
+            }
+            return '';
+        },
+        
+        getStars(rating) {
+            const fullStars = Math.floor(rating);
+            const hasHalfStar = rating % 1 >= 0.5;
+            let stars = '';
+            
+            for (let i = 0; i < fullStars; i++) {
+                stars += '<i class="fas fa-star"></i>';
+            }
+            if (hasHalfStar) {
+                stars += '<i class="fas fa-star-half-alt"></i>';
+            }
+            for (let i = fullStars + (hasHalfStar ? 1 : 0); i < 5; i++) {
+                stars += '<i class="far fa-star"></i>';
+            }
+            
+            return stars;
+        },
+
+        formatDate(dateString) {
+            const date = new Date(dateString);
+            return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+        },
+
+        contentLabel() {
+            switch (this.postType) {
+                case 'journal': return 'Description';
+                case 'question': return 'Your question';
+                case 'poll': return 'Poll question';
+                default: return 'Content';
+            }
+        },
+
+        placeholder() {
+            switch (this.postType) {
+                case 'journal': return 'Describe what kind of feedback you want (e.g., methodology, results, structure)...';
+                case 'question': return 'What would you like to ask the academic community?';
+                case 'poll': return 'What would you like to poll the community about?';
+                default: return 'Share your thoughts, insights, or start a discussion...';
+            }
+        },
+
+        onJournalSelected() {
+            const j = this.userJournals.find(x => String(x.id) === String(this.selectedJournalId));
+            if (j && (!this.postTitle || this.postTitle.trim() === '')) {
+                this.postTitle = j.title || '';
+            }
+        },
+
+        buildPostContent() {
+            if (this.postType === 'journal') {
+                const title = (this.postTitle || '').trim();
+                const desc = (this.postDescription || '').trim();
+                if (title && desc) {
+                    return `Title: ${title}\n\n${desc}`;
+                }
+                if (desc) {
+                    return desc;
+                }
+                return '';
+            }
+
+            return (this.postContent || '').trim();
+        },
+
+        canSubmit() {
+            const content = this.buildPostContent();
+            const contentValid = content && content.length >= 10;
+            if (this.postType === 'journal') {
+                const journalSelected = !!this.selectedJournalId;
+                return contentValid && journalSelected;
+            }
+            return contentValid;
+        },
+
+        async generateAIPostCopy() {
+            if (!this.selectedJournalId || this.generatingPostCopy) return;
+            this.generatingPostCopy = true;
+
+            try {
+                const response = await fetch('/api/journal/generate-post-copy', {
+                    method: 'POST',
+                    headers: {
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                    },
+                    body: JSON.stringify({
+                        journal_id: Number(this.selectedJournalId),
+                        provider: 'deepseek'
+                    })
+                });
+
+                const contentType = response.headers.get('content-type') || '';
+                let data = null;
+                if (contentType.includes('application/json')) {
+                    data = await response.json();
+                } else {
+                    const text = await response.text();
+                    throw new Error(text || `Unexpected response (HTTP ${response.status})`);
+                }
+
+                if (!response.ok || !data.success) {
+                    throw new Error(data.message || 'Failed to generate post copy');
+                }
+
+                if (data.title) this.postTitle = data.title;
+                if (data.description) this.postDescription = data.description;
+            } catch (e) {
+                alert(e.message);
+            } finally {
+                this.generatingPostCopy = false;
+            }
+        },
+
+        async submitPost() {
+            if (!this.canSubmit()) return;
+
+            this.submitting = true;
+
+            try {
+                const formData = {
+                    content: this.buildPostContent(),
+                    type: this.postType,
+                    visibility: this.visibility,
+                    request_review: !!this.requestReview,
+                };
+
+                if (this.postType === 'journal' && this.selectedJournalId) {
+                    formData.journal_id = Number(this.selectedJournalId);
+                }
+
+                const response = await fetch('/api/posts', {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(formData)
+                });
+
+                const contentType = response.headers.get('content-type') || '';
+                if (!contentType.includes('application/json')) {
+                    const text = await response.text();
+                    throw new Error(text || `Unexpected response (HTTP ${response.status})`);
+                }
+
+                const data = await response.json();
+                if (!response.ok || !data.success) {
+                    throw new Error(data.message || 'Failed to create post');
+                }
+
+                this.resetForm();
+                this.showCreateModal = false;
+                location.reload();
+            } catch (e) {
+                alert(e.message);
+            } finally {
+                this.submitting = false;
+            }
+        },
+
+        resetForm() {
+            this.postType = 'discussion';
+            this.visibility = 'public';
+            this.selectedJournalId = '';
+            this.requestReview = true;
+            this.postTitle = '';
+            this.postDescription = '';
+            this.postContent = '';
+        }
+    }));
+};
+
+if (window.Alpine) {
+    registerNetworkComposer();
+} else {
+    document.addEventListener('alpine:init', registerNetworkComposer);
 }
 
 async function sendConnectionRequest(userId) {
@@ -236,6 +391,54 @@ async function sendConnectionRequest(userId) {
         console.error('Error sending connection request:', error);
         alert('Failed to send connection request');
     }
+}
+
+// Global function for publishing journals
+function publishJournal(journalId) {
+    if (!confirm('Are you ready to publish this journal? This will make it publicly available as a completed research paper.')) {
+        return;
+    }
+    
+    fetch(`/journal/${journalId}/publish`, {
+        method: 'POST',
+        headers: {
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Show success notification
+            showNotification('Journal published successfully!', 'success');
+            // Reload the page to show updated status
+            setTimeout(() => location.reload(), 1500);
+        } else {
+            showNotification(data.message || 'Failed to publish journal', 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error publishing journal:', error);
+        showNotification('Error publishing journal', 'error');
+    });
+}
+
+// Helper function to show notifications
+function showNotification(message, type) {
+    const notification = document.createElement('div');
+    notification.className = `fixed top-4 right-4 px-6 py-3 rounded-lg shadow-lg z-50 ${
+        type === 'success' ? 'bg-green-500 text-white' : 
+        type === 'error' ? 'bg-red-500 text-white' : 
+        'bg-blue-500 text-white'
+    }`;
+    notification.textContent = message;
+    
+    document.body.appendChild(notification);
+    
+    setTimeout(() => {
+        notification.remove();
+    }, 3000);
 }
 </script>
 @endsection

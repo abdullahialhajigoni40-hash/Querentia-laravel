@@ -45,7 +45,7 @@
         <ul class="text-left text-purple-800 space-y-2">
             <li class="flex items-start">
                 <i class="fas fa-robot text-purple-600 mt-1 mr-3"></i>
-                <span>Access the AI Journal Studio to start creating publications</span>
+                <span>Access the AI Journal to start creating publications</span>
             </li>
             <li class="flex items-start">
                 <i class="fas fa-bolt text-purple-600 mt-1 mr-3"></i>

@@ -5,7 +5,7 @@ namespace App\Http\Middleware;
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use App\Models\NetworkPost;
+use App\Models\Post;
 use Symfony\Component\HttpFoundation\Response;
 
 class CheckPostVisibility
@@ -23,11 +23,11 @@ class CheckPostVisibility
             return $next($request);
         }
         
-        // Get post
-        $post = $request->route('post') instanceof NetworkPost 
-            ? $request->route('post') 
-            : NetworkPost::find($postId);
-        
+        $resolvedPost = $request->route('post');
+        $postId = $resolvedPost instanceof Post ? $resolvedPost->id : $postId;
+
+        $post = Post::with(['user', 'journal'])->find($postId);
+
         if (!$post) {
             if ($request->expectsJson()) {
                 return response()->json([
@@ -39,9 +39,10 @@ class CheckPostVisibility
             
             abort(404, 'Post not found.');
         }
-        
-        // Check if user can view this post
-        if (!$post->canView(Auth::user())) {
+
+        $isVisible = Post::visibleTo(Auth::id())->whereKey($post->id)->exists();
+
+        if (!$isVisible) {
             if ($request->expectsJson()) {
                 return response()->json([
                     'success' => false,

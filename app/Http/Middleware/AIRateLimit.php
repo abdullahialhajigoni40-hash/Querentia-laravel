@@ -19,11 +19,14 @@ class AIRateLimit
         $key = 'ai_rate_limit:' . ($request->user()?->id ?: $request->ip());
         $maxAttempts = config('ai.rate_limit', 100);
         $decayMinutes = config('ai.rate_limit_period', 60);
+
+        $acceptHeader = (string) $request->header('Accept', '');
+        $wantsJson = $request->expectsJson() || str_contains($acceptHeader, 'text/event-stream');
         
         if (RateLimiter::tooManyAttempts($key, $maxAttempts)) {
             $seconds = RateLimiter::availableIn($key);
             
-            if ($request->expectsJson()) {
+            if ($wantsJson) {
                 return response()->json([
                     'success' => false,
                     'message' => "Too many AI requests. Please try again in {$seconds} seconds.",

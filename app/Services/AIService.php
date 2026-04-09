@@ -40,6 +40,13 @@ class AIJournalService
         $prompt = $this->createJournalPrompt($sections);
         $systemPrompt = $this->getSystemPrompt();
 
+        // Debug: Log what we're sending to AI
+        Log::info('AI PROMPT DEBUG: ', [
+            'sections_input' => $sections,
+            'generated_prompt' => $prompt,
+            'prompt_length' => strlen($prompt)
+        ]);
+
         try {
             $response = $this->client->post($config['endpoint'], [
                 'headers' => [
@@ -111,11 +118,25 @@ class AIJournalService
     {
         $prompt = "Write a comprehensive academic journal paper based on the following section drafts provided by the researcher. \n\n";
         
-        // Loop through provided sections to build context
-        foreach ($sections as $key => $value) {
-            if (!empty($value) && is_string($value)) {
-                $label = ucwords(str_replace('_', ' ', $key));
-                $prompt .= "### {$label}:\n{$value}\n\n";
+        // Handle both formats: array of objects or associative array
+        foreach ($sections as $key => $section) {
+            $content = '';
+            $title = '';
+            
+            if (is_array($section)) {
+                // Format: [{title: '...', content: '...'}, ...]
+                if (isset($section['content'])) {
+                    $content = $section['content'];
+                    $title = $section['title'] ?? 'Section';
+                }
+            } elseif (is_string($section)) {
+                // Format: ['key' => 'content', ...]
+                $content = $section;
+                $title = ucwords(str_replace('_', ' ', $key));
+            }
+            
+            if (!empty($content) && is_string($content)) {
+                $prompt .= "### {$title}:\n{$content}\n\n";
             }
         }
 

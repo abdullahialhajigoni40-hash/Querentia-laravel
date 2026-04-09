@@ -17,6 +17,9 @@ class CheckSubscription
     public function handle(Request $request, Closure $next): Response
     {
         $user = Auth::user();
+
+        $acceptHeader = (string) $request->header('Accept', '');
+        $wantsJson = $request->expectsJson() || str_contains($acceptHeader, 'text/event-stream');
         
         // If no user is logged in, allow access (auth middleware will handle this)
         if (!$user) {
@@ -29,7 +32,7 @@ class CheckSubscription
             if (!$user->hasActiveSubscription()) {
                 // Check free tier usage
                 if ($this->hasExceededFreeTier($user)) {
-                    return $this->handleSubscriptionRequired($request);
+                    return $this->handleSubscriptionRequired($request, $wantsJson);
                 }
             }
         }
@@ -61,9 +64,9 @@ class CheckSubscription
     /**
      * Handle subscription required response
      */
-    private function handleSubscriptionRequired(Request $request): Response
+    private function handleSubscriptionRequired(Request $request, bool $wantsJson): Response
     {
-        if ($request->expectsJson()) {
+        if ($wantsJson) {
             return response()->json([
                 'success' => false,
                 'message' => 'Subscription required for this feature.',

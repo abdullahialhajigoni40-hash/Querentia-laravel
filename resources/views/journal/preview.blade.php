@@ -6,6 +6,7 @@
     <title>Preview: {{ $journal->title }} - Querentia</title>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://cdn.jsdelivr.net/npm/quill@1.3.7/dist/quill.snow.css" rel="stylesheet">
     <style>
         body {
             overflow-x: hidden;
@@ -15,7 +16,7 @@
             font-family: 'Times New Roman', serif;
             line-height: 1.8;
             color: #333;
-            max-height: calc(100vh - 300px);
+            max-height: calc(100vh - 5px);
             overflow-y: auto;
             padding: 3rem;
         }
@@ -125,7 +126,7 @@
         
         /* Ensure container has proper height */
         .journal-container {
-            max-height: calc(100vh - 300px);
+            max-height: calc(100vh - 5px);
             display: flex;
             flex-direction: column;
         }
@@ -224,6 +225,21 @@
         .content-toggle.collapsed .content-toggle-icon {
             transform: rotate(-90deg);
         }
+        
+        .ql-toolbar.ql-snow {
+            border: 1px solid #e5e7eb;
+            border-radius: 0.5rem;
+            margin: 0 1rem;
+            background: #fff;
+        }
+        
+        .ql-container.ql-snow {
+            border: none;
+        }
+        
+        #ai-editor {
+            min-height: 55vh;
+        }
     </style>
 </head>
 <body class="bg-gray-100">
@@ -238,23 +254,29 @@
                     <h1 class="ml-4 text-lg font-semibold text-gray-900">Journal Preview</h1>
                 </div>
                 <div class="flex items-center space-x-4">
-                    <!-- Status Badge -->
                     <span class="status-badge status-{{ $journal->status }}">
                         {{ str_replace('_', ' ', $journal->status) }}
                     </span>
-                    
+
+                    <a href="{{ route('journal.network', ['journal_id' => $journal->id, 'ai' => $journal->is_ai_journal ? 1 : null]) }}"
+                       class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center">
+                        <i class="fas fa-arrow-right mr-2"></i>Continue to Network
+                    </a>
+
+                    @if($journal->status === 'published')
                     <a href="{{ route('journal.download', $journal) }}" 
                        class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center">
-                        <i class="fas fa-download mr-2"></i>Download PDF
+                        <i class="fas fa-download mr-2"></i>Download DOC
                     </a>
-                    
+                    @endif
+
                     @if($journal->status === 'ai_draft' || $journal->status === 'draft')
                     <button onclick="postForReview()"
                             class="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 flex items-center">
                         <i class="fas fa-share mr-2"></i>Post for Review
                     </button>
                     @endif
-                    
+
                     <a href="{{ route('journal.edit', $journal) }}"
                        class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 flex items-center">
                         <i class="fas fa-edit mr-2"></i>Edit
@@ -266,7 +288,12 @@
 
     <div class="pt-20 pb-10">
         <div class="max-w-5xl mx-auto bg-white shadow-lg rounded-lg overflow-scroll journal-container">
-            <!-- Journal Header -->
+            @if($journal->status !== 'published')
+                <div class="bg-yellow-50 border-b border-yellow-200 px-6 py-4">
+                    <div class="text-sm font-semibold tracking-wide text-yellow-900">PREPRINT - NOT PEER REVIEWED</div>
+                    <div class="text-sm text-yellow-800 mt-1">This manuscript is shared for discussion and has not been certified by peer review.</div>
+                </div>
+            @endif
             <div class="bg-gray-50 border-b p-4">
                 <div class="flex items-center justify-between">
                     <div>
@@ -297,54 +324,29 @@
                 </div>
             </div>
 
-            <!-- AI Content Warning -->
-            @if($journal->ai_percentage > 0)
-            <div class="ai-warning mx-4 mt-4">
-                <i class="fas fa-robot"></i>
-                <p>
-                    <strong>AI Content Notice:</strong> This journal contains {{ $journal->ai_percentage }}% AI-generated content.
-                    @if($journal->ai_percentage <= 30)
-                        Within recommended guidelines.
-                    @elseif($journal->ai_percentage <= 50)
-                        Consider adding more original content.
-                    @else
-                        Exceeds recommended AI content ratio.
-                    @endif
-                </p>
-            </div>
-            @endif
-
-            <!-- Content Toggle (Original vs AI) -->
-            @if($journal->ai_generated_content && $journal->hasHumanContent())
-            <div class="mx-4 mt-4">
-                <div class="content-toggle" onclick="toggleContent()" id="content-toggle">
-                    <div class="content-toggle-label">
-                        <i class="fas fa-exchange-alt"></i>
-                        <span id="toggle-label">View AI-Generated Content</span>
+            <div class="mx-4 mt-4 flex items-center justify-between">
+                <div class="text-sm text-gray-600">
+                    <i class="fas fa-pen mr-2"></i>Edit AI-generated journal in place
+                </div>
+                <div class="flex items-center space-x-3">
+                    <div class="text-sm text-gray-600">
+                        <i class="fas fa-file-word mr-1"></i>
+                        <span id="ai-word-count">0</span> words
                     </div>
-                    <div class="content-toggle-icon">
-                        <i class="fas fa-chevron-down"></i>
-                    </div>
+                    <button type="button" onclick="savePreview()"
+                            class="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 flex items-center">
+                        <i class="fas fa-save mr-2"></i>Save Preview
+                    </button>
                 </div>
             </div>
-            @endif
 
-            <!-- Scrollable Journal Content -->
             <div class="journal-preview" id="journal-content">
-                <!-- Display either AI content or original content based on toggle -->
-                @if($journal->ai_generated_content && !$journal->hasHumanContent())
-                    <!-- Show only AI content if no human content -->
-                    {!! $this->formatAIContent($journal->ai_generated_content) !!}
-                @elseif(!$journal->ai_generated_content || $showOriginal)
-                    <!-- Show original content -->
-                    @include('journal.partials.original-content', ['journal' => $journal])
-                @else
-                    <!-- Show AI content -->
-                    {!! $this->formatAIContent($journal->ai_generated_content) !!}
-                @endif
+                <div class="journal-body">
+                    <div id="quill-toolbar"></div>
+                    <div id="ai-editor"></div>
+                </div>
             </div>
 
-            <!-- Action Buttons -->
             <div class="border-t p-6 bg-gray-50">
                 <div class="flex flex-col md:flex-row justify-between items-center space-y-4 md:space-y-0">
                     <div class="text-sm text-gray-600">
@@ -357,69 +359,23 @@
                             @endif
                         </p>
                         @endif
-                        @if($journal->ai_percentage > 0)
-                        <p class="flex items-center mt-1">
-                            <i class="fas fa-chart-pie mr-2"></i>
-                            AI Content: {{ $journal->ai_percentage }}%
-                            <span class="ml-2 text-xs px-2 py-0.5 rounded-full 
-                                @if($journal->ai_percentage <= 30) bg-green-100 text-green-800
-                                @elseif($journal->ai_percentage <= 50) bg-yellow-100 text-yellow-800
-                                @else bg-red-100 text-red-800 @endif">
-                                @if($journal->ai_percentage <= 30) Within guidelines
-                                @elseif($journal->ai_percentage <= 50) Moderate
-                                @else High @endif
-                            </span>
-                        </p>
-                        @endif
                     </div>
-                    
                     <div class="flex space-x-3">
+                        @if($journal->status === 'published')
                         <a href="{{ route('journal.download', $journal) }}" 
                            class="px-6 py-3 bg-gradient-to-r from-green-600 to-teal-500 text-white rounded-lg hover:opacity-90 font-medium flex items-center">
-                            <i class="fas fa-file-pdf mr-2"></i>Download PDF
+                            <i class="fas fa-file-word mr-2"></i>Download DOC
                         </a>
-                        
+                        @endif
+
                         @if($journal->status === 'ai_draft' || $journal->status === 'draft')
                         <button onclick="postForReview()"
                                 class="px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-500 text-white rounded-lg hover:opacity-90 font-medium flex items-center">
                             <i class="fas fa-share-alt mr-2"></i>Post for Peer Review
                         </button>
                         @endif
-                        
-                        @if($journal->status === 'under_review' && $journal->reviews->count() > 0)
-                        <a href="{{ route('journal.improve', $journal) }}"
-                           class="px-6 py-3 bg-gradient-to-r from-orange-600 to-red-500 text-white rounded-lg hover:opacity-90 font-medium flex items-center">
-                            <i class="fas fa-comments mr-2"></i>Improve with Feedback
-                        </a>
-                        @endif
                     </div>
                 </div>
-                
-                <!-- Version History -->
-                @if($journal->versions->count() > 0)
-                <div class="mt-6 pt-6 border-t border-gray-200">
-                    <h4 class="text-sm font-semibold text-gray-700 mb-3">Version History</h4>
-                    <div class="space-y-2">
-                        @foreach($journal->versions->sortByDesc('version_number')->take(3) as $version)
-                        <div class="flex items-center justify-between p-2 bg-gray-50 rounded">
-                            <div class="flex items-center space-x-3">
-                                <span class="text-xs font-medium text-gray-700">v{{ $version->version_number }}</span>
-                                <span class="text-xs text-gray-600">{{ $version->created_at->diffForHumans() }}</span>
-                                @if($version->is_ai_generated)
-                                <span class="text-xs px-2 py-0.5 bg-blue-100 text-blue-800 rounded-full">AI</span>
-                                @endif
-                            </div>
-                            @if(!$version->is_latest_version)
-                            <button onclick="restoreVersion({{ $version->id }})"
-                                    class="text-xs text-purple-600 hover:text-purple-800">
-                                Restore
-                            </button>
-                            @endif
-                        </div>
-                        @endforeach
-                    </div>
-                </div>
-                @endif
             </div>
         </div>
     </div>
@@ -434,7 +390,6 @@
                 <select id="visibility" class="w-full border rounded-lg p-2">
                     <option value="public">Public (All Querentia Users)</option>
                     <option value="connections">My Connections Only</option>
-                    <option value="experts">Experts in My Field</option>
                 </select>
             </div>
             
@@ -489,59 +444,158 @@
         </div>
     </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/quill@1.3.7/dist/quill.min.js"></script>
     <script>
-        let showingAIContent = false;
-        let originalContent = '';
-        let aiContent = '';
-        
-        // Initialize content
-        document.addEventListener('DOMContentLoaded', function() {
-            originalContent = document.getElementById('journal-content').innerHTML;
-            @if($journal->ai_generated_content)
-                aiContent = `{!! $this->formatAIContent($journal->ai_generated_content) !!}`;
-            @endif
-            
-            // Set initial state
-            updateToggleButton();
+        const csrfToken = '{{ csrf_token() }}';
+        const uploadUrl = '{{ route('journal.upload.image', $journal) }}';
+
+        const toolbarOptions = [
+            [{ 'header': [1, 2, 3, false] }],
+            ['bold', 'italic', 'underline', 'strike'],
+            [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+            [{ 'align': [] }],
+            ['blockquote', 'code-block'],
+            ['link', 'image'],
+            ['clean']
+        ];
+
+        const quill = new Quill('#ai-editor', {
+            theme: 'snow',
+            modules: {
+                toolbar: {
+                    container: toolbarOptions,
+                    handlers: {
+                        image: function () {
+                            selectLocalImage();
+                        }
+                    }
+                }
+            }
         });
-        
-        function toggleContent() {
-            const toggle = document.getElementById('content-toggle');
-            const contentDiv = document.getElementById('journal-content');
-            
-            showingAIContent = !showingAIContent;
-            
-            if (showingAIContent && aiContent) {
-                contentDiv.innerHTML = aiContent;
-                toggle.classList.remove('collapsed');
+
+        // Initialize with server-provided content
+        (function initContent() {
+            const initial = @json($ai_source);
+            if (!initial) return;
+
+            // If it looks like HTML, paste it as HTML. Otherwise, paste as plain text.
+            const looksHtml = /<\s*\w+[^>]*>/i.test(initial);
+            if (looksHtml) {
+                quill.clipboard.dangerouslyPasteHTML(initial);
             } else {
-                contentDiv.innerHTML = originalContent;
-                toggle.classList.add('collapsed');
+                quill.setText(initial);
             }
-            
-            updateToggleButton();
-            contentDiv.scrollTop = 0;
+        })();
+
+        function getPlainTextWordCount(text) {
+            const t = (text || '').replace(/\s+/g, ' ').trim();
+            if (!t) return 0;
+            return t.split(' ').filter(Boolean).length;
         }
-        
-        function updateToggleButton() {
-            const label = document.getElementById('toggle-label');
-            if (showingAIContent) {
-                label.textContent = 'View Original Content';
+
+        function updateWordCount() {
+            const text = quill.getText();
+            document.getElementById('ai-word-count').textContent = String(getPlainTextWordCount(text));
+        }
+
+        quill.on('text-change', updateWordCount);
+        updateWordCount();
+
+        async function selectLocalImage() {
+            const input = document.createElement('input');
+            input.setAttribute('type', 'file');
+            input.setAttribute('accept', 'image/*');
+            input.click();
+
+            input.onchange = async () => {
+                const file = input.files && input.files[0];
+                if (!file) return;
+                await uploadAndInsertImage(file);
+            };
+        }
+
+        async function uploadAndInsertImage(file) {
+            const formData = new FormData();
+            formData.append('image', file);
+
+            const res = await fetch(uploadUrl, {
+                method: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': csrfToken,
+                    'Accept': 'application/json',
+                },
+                body: formData,
+            });
+
+            const ct = res.headers.get('content-type') || '';
+            let data = null;
+            if (ct.includes('application/json')) {
+                data = await res.json().catch(() => null);
             } else {
-                label.textContent = 'View AI-Generated Content';
+                const text = await res.text().catch(() => '');
+                alert(text || `Failed to upload image (HTTP ${res.status})`);
+                return;
+            }
+
+            if (!res.ok || !data || !data.success) {
+                alert((data && data.message) ? data.message : `Failed to upload image (HTTP ${res.status})`);
+                return;
+            }
+
+            const range = quill.getSelection(true);
+            const index = range ? range.index : quill.getLength();
+            quill.insertEmbed(index, 'image', data.url, 'user');
+            quill.setSelection(index + 1, 0);
+        }
+
+        async function savePreview() {
+            const aiContent = quill.root.innerHTML || '';
+
+            try {
+                const res = await fetch('{{ route('journal.save.ai.preview', $journal) }}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': csrfToken,
+                        'Accept': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        ai_content: aiContent,
+                    })
+                });
+
+                const ct = res.headers.get('content-type') || '';
+                let data = null;
+                if (ct.includes('application/json')) {
+                    data = await res.json().catch(() => null);
+                } else {
+                    const text = await res.text().catch(() => '');
+                    alert(text || `Failed to save preview (HTTP ${res.status})`);
+                    return;
+                }
+
+                if (!res.ok || !data || !data.success) {
+                    const msg = (data && (data.message || (data.errors && JSON.stringify(data.errors)))) || `Failed to save preview (HTTP ${res.status})`;
+                    alert(msg);
+                    return;
+                }
+                updateWordCount();
+            } catch (e) {
+                console.error(e);
+                alert('Failed to save preview');
             }
         }
-        
+
         function postForReview() {
             document.getElementById('postModal').classList.remove('hidden');
             document.getElementById('postModal').classList.add('flex');
         }
-        
+
         function closePostModal() {
             document.getElementById('postModal').classList.remove('flex');
             document.getElementById('postModal').classList.add('hidden');
         }
-        
+
         function submitPostForReview() {
             const visibility = document.getElementById('visibility').value;
             const feedbackRequest = document.getElementById('feedbackRequest').value;
@@ -567,8 +621,7 @@
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    alert('Journal posted for review successfully!');
-                    window.location.href = data.redirect_url || '{{ route("network.home") }}';
+                    window.location.href = '{{ route('journal.network', ['journal_id' => $journal->id, 'ai' => $journal->is_ai_journal ? 1 : null]) }}';
                 } else {
                     alert('Error: ' + data.message);
                 }

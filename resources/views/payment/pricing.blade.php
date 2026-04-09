@@ -50,7 +50,7 @@
                 </li>
                 <li class="flex items-center text-gray-400">
                     <i class="fas fa-times mr-3"></i>
-                    <span>AI Journal Studio</span>
+                    <span>AI Journal</span>
                 </li>
                 <li class="flex items-center text-gray-400">
                     <i class="fas fa-times mr-3"></i>
@@ -93,7 +93,7 @@
                 </li>
                 <li class="flex items-center">
                     <i class="fas fa-check text-green-500 mr-3"></i>
-                    <span>AI Journal Studio Access</span>
+                    <span>AI Journal Access</span>
                 </li>
                 <li class="flex items-center">
                     <i class="fas fa-check text-green-500 mr-3"></i>
@@ -189,7 +189,7 @@
                 </thead>
                 <tbody>
                     <tr class="border-b">
-                        <td class="py-4 font-medium">AI Journal Studio</td>
+                        <td class="py-4 font-medium">AI Journal</td>
                         <td class="text-center py-4"><i class="fas fa-times text-red-500"></i></td>
                         <td class="text-center py-4"><i class="fas fa-check text-green-500"></i></td>
                         <td class="text-center py-4"><i class="fas fa-check text-green-500"></i></td>

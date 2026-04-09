@@ -26,7 +26,7 @@ return new class extends Migration
                 $table->string('task_type')->nullable();
                 $table->timestamps();
                 
-                // Indexes
+                // Indexes - only if creating new table
                 $table->index(['user_id', 'created_at']);
                 $table->index(['provider', 'success']);
                 $table->index('task_type');
@@ -52,31 +52,10 @@ return new class extends Migration
                     $table->string('task_type')->nullable();
                 }
             });
-            
-            // Add indexes if they don't exist
-            Schema::table('ai_usage_logs', function (Blueprint $table) {
-                try {
-                    $table->index(['user_id', 'created_at']);
-                } catch (\Exception $e) {
-                    // Index may already exist
-                }
-                try {
-                    $table->index(['provider', 'success']);
-                } catch (\Exception $e) {
-                    // Index may already exist
-                }
-                try {
-                    $table->index('task_type');
-                } catch (\Exception $e) {
-                    // Index may already exist
-                }
-                try {
-                    $table->index('created_at');
-                } catch (\Exception $e) {
-                    // Index may already exist
-                }
-            });
         }
+        
+        // Note: We're NOT adding indexes here because they already exist from the original migration
+        // If you need to add indexes that don't exist, check for them first
     }
 
     public function down(): void
@@ -97,28 +76,7 @@ return new class extends Migration
             }
         });
         
-        // Try to drop indexes (they may not exist)
-        Schema::table('ai_usage_logs', function (Blueprint $table) {
-            try {
-                $table->dropIndex(['user_id', 'created_at']);
-            } catch (\Exception $e) {
-                // Index may not exist
-            }
-            try {
-                $table->dropIndex(['provider', 'success']);
-            } catch (\Exception $e) {
-                // Index may not exist
-            }
-            try {
-                $table->dropIndex(['task_type']);
-            } catch (\Exception $e) {
-                // Index may not exist
-            }
-            try {
-                $table->dropIndex(['created_at']);
-            } catch (\Exception $e) {
-                // Index may not exist
-            }
-        });
+        // Note: We're NOT dropping indexes in the down() method
+        // because they were created in the original migration
     }
 };

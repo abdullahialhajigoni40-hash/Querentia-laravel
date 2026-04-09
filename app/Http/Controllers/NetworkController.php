@@ -6,17 +6,25 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use App\Models\User;
 use App\Models\Journal;
+use App\Models\Post;
 
 class NetworkController extends Controller
 {
     public function home()
     {
         $user = Auth::user();
+
+        $posts = Post::with(['user', 'journal'])
+            ->withCount(['likes', 'comments'])
+            ->visibleTo($user->id)
+            ->latest()
+            ->paginate(10);
         
         $data = [
             'suggestedConnections' => $this->getSuggestedConnections($user),
             'trendingJournals' => $this->getTrendingJournals(),
             'recentActivity' => $this->getRecentActivity(),
+            'posts' => $posts,
         ];
         
         return view('network.home', $data);

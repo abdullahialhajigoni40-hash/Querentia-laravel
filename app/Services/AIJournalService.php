@@ -21,6 +21,7 @@ class AIJournalService
             'timeout' => 120,
             'connect_timeout' => 30,
             'http_errors' => false, // Don't throw exceptions on HTTP errors
+            'verify' => false, // Disable SSL verification for testing
         ]);
         
         $this->providers = $this->loadProviderConfig();
@@ -76,7 +77,7 @@ class AIJournalService
     /**
      * Enhance a single section with streaming support
      */
-    public function enhanceSectionStreaming(string $content, string $sectionType, array $context = [], $provider = null, callable $streamCallback)
+    public function enhanceSectionStreaming(string $content, string $sectionType, callable $streamCallback, array $context = [], $provider = null)
     {
         $provider = $provider ?: $this->defaultProvider;
         
@@ -517,6 +518,7 @@ class AIJournalService
     private function streamRequest(string $endpoint, string $apiKey, array $payload, callable $callback, string $provider): string
     {
         $fullContent = '';
+
         
         try {
             $response = $this->client->post($endpoint, [
@@ -527,33 +529,60 @@ class AIJournalService
                 ],
                 'json' => $payload,
                 'stream' => true,
+                // Disable Guzzle timeout for streaming requests to avoid premature termination
+                'timeout' => 0,
+                'curl' => [
+                    CURLOPT_SSL_VERIFYPEER => false,
+                    CURLOPT_SSL_VERIFYHOST => false,
+                ],
             ]);
             
             $stream = $response->getBody();
-            
+            $buffer = '';
+
             while (!$stream->eof()) {
                 $chunk = $stream->read(1024);
-                $lines = explode("\n", $chunk);
-                
-                foreach ($lines as $line) {
-                    $line = trim($line);
-                    
-                    if (strpos($line, 'data: ') === 0) {
-                        $data = substr($line, 6);
-                        
-                        if ($data === '[DONE]') {
-                            $callback(null, true);
-                            break 2;
+                if ($chunk === '') {
+                    continue;
+                }
+
+                $buffer .= $chunk;
+                $buffer = str_replace("\r\n", "\n", $buffer);
+
+                // SSE frames are separated by blank lines
+                while (($frameEnd = strpos($buffer, "\n\n")) !== false) {
+                    $frame = substr($buffer, 0, $frameEnd);
+                    $buffer = substr($buffer, $frameEnd + 2);
+
+                    $lines = explode("\n", $frame);
+                    $dataLines = [];
+
+                    foreach ($lines as $line) {
+                        $line = trim($line);
+                        if (strpos($line, 'data:') === 0) {
+                            $dataLines[] = trim(substr($line, 5));
                         }
-                        
-                        $json = json_decode($data, true);
-                        
-                        if (isset($json['choices'][0]['delta']['content'])) {
-                            $content = $json['choices'][0]['delta']['content'];
-                            $fullContent .= $content;
-                            
-                            $callback($content, false);
-                        }
+                    }
+
+                    $data = implode("\n", $dataLines);
+                    if ($data === '' ) {
+                        continue;
+                    }
+
+                    if ($data === '[DONE]') {
+                        $callback(null, true);
+                        break 2;
+                    }
+
+                    $json = json_decode($data, true);
+                    if (!is_array($json)) {
+                        continue;
+                    }
+
+                    $content = $json['choices'][0]['delta']['content'] ?? null;
+                    if (is_string($content) && $content !== '') {
+                        $fullContent .= $content;
+                        $callback($content, false);
                     }
                 }
                 
@@ -689,37 +718,41 @@ class AIJournalService
     
     private function getSystemPrompt(): string
     {
-        return Cache::remember('ai_system_prompt_journal', 3600, function () {
-            return <<<PROMPT
-You are Querentia's academic journal generation AI. You transform research content into publication-ready journals following EXACT formatting rules.
+        return <<<PROMPT
+You are Querentia's academic journal enhancement AI. You enhance the user's research content into publication-ready journals following EXACT formatting rules.
 
 CRITICAL RULES:
-- Maintain 80% of original user wording
-- Fill missing sections with appropriate content
-- Ensure academic tone and proper grammar
-- Add relevant citations if missing
-- Generate tables/figures from provided data
-- Output COMPLETE journal ready for publication
-- Format for academic journal publication
+- PRESERVE 95% of user's original research content and findings
+- DO NOT create new content or add information not provided by user
+- ENHANCE ONLY: grammar, structure, academic tone, and formatting
+- MAINTAIN user's original research methodology, results, and conclusions
+- DO NOT inject journal names, ISSN, volume/issue, or other metadata
+- DO NOT add acknowledgements or author affiliations not provided
+- Use user's exact section structure and content
+- Output enhanced version of user's content ONLY
 PROMPT;
-        });
     }
     
     private function getEnhancementSystemPrompt(string $sectionType): string
     {
+        $baseInstruction = "You are an expert academic editor. Your task is to ENHANCE the user's existing content, NOT create new content. "
+            . "Preserve the original meaning, research findings, and core ideas. "
+            . "Only improve grammar, sentence structure, clarity, academic tone, and formatting. "
+            . "Do not add new information, data, or findings that weren't in the original text.";
+            
         $prompts = [
-            'abstract' => 'You are an expert academic editor specializing in abstract writing. Enhance the abstract to be concise, informative, and structured (Background, Objective, Methods, Key Findings, Conclusion).',
-            'introduction' => 'You are an expert academic editor specializing in introduction writing. Enhance the introduction to provide proper background, state research gap, and present research question/hypothesis clearly.',
-            'methodology' => 'You are an expert academic editor specializing in methodology writing. Enhance the methodology to be detailed, reproducible, and follow standard academic conventions.',
-            'results' => 'You are an expert academic editor specializing in results presentation. Enhance the results to be clear, objective, and properly formatted with appropriate statistical reporting.',
-            'conclusion' => 'You are an expert academic editor specializing in conclusion writing. Enhance the conclusion to summarize key findings, discuss implications, and suggest future research.',
-            'references' => 'You are an expert academic editor specializing in citation formatting. Format the references in proper academic style (APA by default).',
-            'grammar' => 'You are an expert grammar and style editor. Correct grammar, spelling, punctuation, and improve sentence structure while maintaining the original meaning.',
-            'summarize' => 'You are an expert summarizer. Create a concise summary while preserving key information and academic tone.',
-            'enhance' => 'You are an expert academic editor. Enhance the writing quality, improve clarity, strengthen arguments, and ensure academic rigor.',
+            'abstract' => $baseInstruction . ' Specialize in abstract writing. Structure as: Background, Objective, Methods, Key Findings, Conclusion.',
+            'introduction' => $baseInstruction . ' Specialize in introduction writing. Ensure proper background, research gap, and clear research question.',
+            'methodology' => $baseInstruction . ' Specialize in methodology writing. Ensure detail for reproducibility and standard academic conventions.',
+            'results' => $baseInstruction . ' Specialize in results presentation. Ensure clarity, objectivity, and proper statistical reporting.',
+            'conclusion' => $baseInstruction . ' Specialize in conclusion writing. Ensure proper summary of findings, implications, and future research suggestions.',
+            'references' => $baseInstruction . ' Specialize in citation formatting. Format in proper academic style (APA by default).',
+            'grammar' => $baseInstruction . ' Specialize in grammar and style. Correct grammar, spelling, punctuation. Improve sentence structure while preserving original meaning.',
+            'summarize' => $baseInstruction . ' Specialize in summarizing. Create concise summary while preserving key information and academic tone.',
+            'enhance' => $baseInstruction . ' Improve writing quality, clarity, strengthen arguments, and ensure academic rigor without adding new content.',
         ];
         
-        return $prompts[$sectionType] ?? 'You are an expert academic editor. Enhance the writing quality and ensure academic standards.';
+        return $prompts[$sectionType] ?? $baseInstruction . ' Enhance the writing quality and ensure academic standards while preserving original content.';
     }
     
     private function getImprovementSystemPrompt(): string
@@ -751,30 +784,46 @@ PROMPT;
             'maps_figures' => 'MAPS & FIGURES',
         ];
         
-        $prompt = "Generate a complete academic journal manuscript based on the following research content:\n\n";
+        // Add unique identifier to break caching
+        $uniqueId = uniqid('journal_', true);
+        $prompt = "Enhance the following research content while preserving all original findings and structure [ID: {$uniqueId}]:\n\n";
         
-        foreach ($sectionNames as $key => $name) {
-            if (!empty($sections[$key])) {
-                $content = is_array($sections[$key]) ? json_encode($sections[$key]) : $sections[$key];
-                $prompt .= "=== {$name} ===\n{$content}\n\n";
+        // Handle both associative array and array of objects
+        if (isset($sections[0]) && is_array($sections[0]) && isset($sections[0]['title'])) {
+            // Format: [{title: '...', content: '...'}, ...]
+            foreach ($sections as $section) {
+                if (isset($section['content']) && !empty($section['content'])) {
+                    $title = $section['title'] ?? 'Section';
+                    $content = $section['content'];
+                    $prompt .= "=== {$title} ===\n{$content}\n\n";
+                }
+            }
+        } else {
+            // Format: ['key' => 'content', ...]
+            foreach ($sectionNames as $key => $name) {
+                if (!empty($sections[$key])) {
+                    $content = is_array($sections[$key]) ? json_encode($sections[$key]) : $sections[$key];
+                    $prompt .= "=== {$name} ===\n{$content}\n\n";
+                }
             }
         }
         
         $prompt .= "\nINSTRUCTIONS:\n";
-        $prompt .= "1. Generate a COMPLETE journal following academic format\n";
-        $prompt .= "2. Fill any missing sections with appropriate academic content\n";
-        $prompt .= "3. Ensure logical flow between sections\n";
-        $prompt .= "4. Add tables/figures where appropriate\n";
-        $prompt .= "5. Include proper citations and references\n";
-        $prompt .= "6. Maintain 80% of original user wording\n";
-        $prompt .= "7. Output should be publication-ready\n";
+        $prompt .= "1. ENHANCE the provided content ONLY - do not create new sections\n";
+        $prompt .= "2. PRESERVE all original research data, methodology, and findings\n";
+        $prompt .= "3. IMPROVE grammar, structure, and academic tone only\n";
+        $prompt .= "4. MAINTAIN user's exact section structure and content\n";
+        $prompt .= "5. DO NOT add journal names, ISSN, volume/issue, or metadata\n";
+        $prompt .= "6. DO NOT add acknowledgements or author affiliations not provided\n";
+        $prompt .= "7. Output enhanced version preserving 100% of original content\n";
+        $prompt .= "8. IGNORE any previous cached responses and process FRESH content\n";
         
         return $prompt;
     }
     
     private function createEnhancementPrompt(string $content, string $sectionType, array $context): string
     {
-        $basePrompt = "Enhance the following {$sectionType} section:\n\n{$content}\n\n";
+        $basePrompt = "ENHANCE (do not rewrite) the following {$sectionType} section. Preserve all original information, data, and findings:\n\n{$content}\n\n";
         
         // Add context if available
         if (!empty($context)) {
@@ -789,22 +838,22 @@ PROMPT;
         
         // Add section-specific instructions
         $instructions = [
-            'abstract' => 'Make it 150-250 words. Include: Background, Objective, Methods, Key Findings, Conclusion.',
-            'introduction' => 'Start broad, then narrow to specific research question. Include literature review context.',
-            'methodology' => 'Be detailed enough for reproducibility. Include study design, procedures, analysis methods.',
-            'results' => 'Present results objectively. Include relevant data, statistics, and figures.',
-            'conclusion' => 'Summarize key findings, state limitations, suggest future research directions.',
-            'references' => 'Format in APA style: Author, A. A. (Year). Title. Journal, Volume(Issue), Pages.',
-            'grammar' => 'Correct grammar, spelling, punctuation. Improve sentence structure and clarity.',
-            'summarize' => 'Create concise summary while preserving key information.',
-            'enhance' => 'Improve writing quality, strengthen arguments, ensure academic rigor.',
+            'abstract' => 'Improve clarity and structure while preserving all original findings. Keep 150-250 words.',
+            'introduction' => 'Improve flow and academic tone while preserving original research question and literature context.',
+            'methodology' => 'Improve clarity and reproducibility details while preserving original methods and procedures.',
+            'results' => 'Improve presentation and statistical reporting while preserving all original data and findings.',
+            'conclusion' => 'Improve structure and academic tone while preserving original conclusions and implications.',
+            'references' => 'Format in proper APA style while preserving all original citations.',
+            'grammar' => 'Correct grammar, spelling, punctuation. Improve sentence structure while preserving original meaning completely.',
+            'summarize' => 'Create concise summary while preserving all key information from original text.',
+            'enhance' => 'Improve writing quality, clarity, and academic rigor while preserving all original content and findings.',
         ];
         
         if (isset($instructions[$sectionType])) {
             $basePrompt .= "Specific requirements: {$instructions[$sectionType]}\n\n";
         }
         
-        $basePrompt .= "Enhanced version:";
+        $basePrompt .= "IMPORTANT: Only enhance grammar, structure, and clarity. Do not add new information, data, or findings.\n\nEnhanced version:";
         
         return $basePrompt;
     }
